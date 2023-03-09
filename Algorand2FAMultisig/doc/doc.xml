@@ -1,0 +1,181 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>Algorand2FAMultisig</name>
+    </assembly>
+    <members>
+        <member name="T:Algorand2FAMultisig.Controllers.MultisigController">
+            <summary>
+            API controller
+            </summary>
+        </member>
+        <member name="M:Algorand2FAMultisig.Controllers.MultisigController.#ctor(Microsoft.Extensions.Logging.ILogger{Algorand2FAMultisig.Controllers.MultisigController},Microsoft.Extensions.Configuration.IConfiguration)">
+            <summary>
+            Constructor
+            </summary>
+            <param name="logger"></param>
+            <param name="configuration"></param>
+            <exception cref="T:System.Exception"></exception>
+        </member>
+        <member name="M:Algorand2FAMultisig.Controllers.MultisigController.ComputeSHA256Hash(System.String)">
+            <summary>
+            SHA256
+            </summary>
+            <param name="text"></param>
+            <returns></returns>
+        </member>
+        <member name="M:Algorand2FAMultisig.Controllers.MultisigController.ComputeSHA256HashBytes(System.String)">
+            <summary>
+            SHA256
+            </summary>
+            <param name="text"></param>
+            <returns></returns>
+        </member>
+        <member name="M:Algorand2FAMultisig.Controllers.MultisigController.GetMasterPasswordHash">
+            <summary>
+            Shows the configured account for this 2FA system
+            </summary>
+            <returns></returns>
+        </member>
+        <member name="M:Algorand2FAMultisig.Controllers.MultisigController.GetRealm">
+            <summary>
+            Shows the configured account for this 2FA system
+            </summary>
+            <returns></returns>
+        </member>
+        <member name="M:Algorand2FAMultisig.Controllers.MultisigController.GetAddress">
+            <summary>
+            Shows the configured account for this 2FA system
+            </summary>
+            <returns></returns>
+        </member>
+        <member name="M:Algorand2FAMultisig.Controllers.MultisigController.SetupGoogleAuthenticator(System.String)">
+            <summary>
+            Ask for QR code. Returns image with additional information in headers.
+            
+            In X-2FA header is setup object
+            in X-Address header is the configured address
+            </summary>
+            <param name="accountTitleNoSpaces">The user account or source system. It is shown in the Authenticator app</param>
+            <returns></returns>
+        </member>
+        <member name="M:Algorand2FAMultisig.Controllers.MultisigController.SetupGoogleAuthenticatorJson(System.String)">
+            <summary>
+            Ask for QR code
+            </summary>
+            <param name="accountTitleNoSpaces">The user account or source system. It is shown in the Authenticator app</param>
+            <returns>Model.SetupReturn</returns>
+        </member>
+        <member name="M:Algorand2FAMultisig.Controllers.MultisigController.TestValidateTwoFactorPIN(System.String)">
+            <summary>
+            Test 2FA auth
+            </summary>
+            <param name="txtCode"></param>
+            <returns></returns>
+        </member>
+        <member name="M:Algorand2FAMultisig.Controllers.MultisigController.SignValidateTwoFactorPIN(System.String,Algorand2FAMultisig.Model.Multisig,Algorand.Algod.Model.Transactions.SignedTransaction)">
+            <summary>
+            Do multisig signing and return SignedTransaction json object 
+            </summary>
+            <param name="txtCode"></param>
+            <param name="msigConfig"></param>
+            <param name="tx"></param>
+            <returns></returns>
+        </member>
+        <member name="M:Algorand2FAMultisig.Controllers.MultisigController.SignValidateTwoFactorPINBase64Tx(System.String,Algorand2FAMultisig.Model.Multisig,System.String)">
+            <summary>
+            Do multisig signing with json object from base64 and return SignedTransaction json object with signature
+            </summary>
+            <param name="txtCode"></param>
+            <param name="msigConfig"></param>
+            <param name="signedTx"></param>
+            <returns></returns>
+        </member>
+        <member name="T:Algorand2FAMultisig.Model.Multisig">
+            <summary>
+            Multisig comm object
+            </summary>
+        </member>
+        <member name="P:Algorand2FAMultisig.Model.Multisig.Version">
+            <summary>
+            Version 1
+            </summary>
+        </member>
+        <member name="P:Algorand2FAMultisig.Model.Multisig.Threshold">
+            <summary>
+            Multisig threshold - number of signatures required
+            </summary>
+        </member>
+        <member name="P:Algorand2FAMultisig.Model.Multisig.Signators">
+            <summary>
+            Signators addresses
+            </summary>
+        </member>
+        <member name="T:Algorand2FAMultisig.Model.SetupReturn">
+            <summary>
+            2FA setup by Authentication application
+            </summary>
+        </member>
+        <member name="P:Algorand2FAMultisig.Model.SetupReturn.Address">
+            <summary>
+            User's personal address for this service
+            </summary>
+        </member>
+        <member name="P:Algorand2FAMultisig.Model.SetupReturn.ManualEntryKey">
+            <summary>
+            QR code entry value for manual input to Authentication application
+            </summary>
+        </member>
+        <member name="P:Algorand2FAMultisig.Model.SetupReturn.QrCodeSetupImageUrl">
+            <summary>
+            QR code
+            </summary>
+        </member>
+        <member name="P:Algorand2FAMultisig.Model.SetupReturn.Account">
+            <summary>
+            Account
+            </summary>
+        </member>
+        <member name="T:Algorand2FAMultisig.MsigExtension.MsigExtension">
+            <summary>
+            MsigExtension
+            </summary>
+        </member>
+        <member name="M:Algorand2FAMultisig.MsigExtension.MsigExtension.SignMultisigTransaction(Algorand.Algod.Model.Account,Algorand.MultisigAddress,Algorand.Algod.Model.Transactions.Transaction)">
+            <summary>
+            SignMultisigTransaction creates a multisig transaction from the input and the multisig account.
+            </summary>
+            <param name="account">Account to sign it with</param>
+            <param name="from">sign as this multisignature account</param>
+            <param name="tx">the transaction to sign</param>
+            <returns>SignedTransaction a partially signed multisig transaction</returns>
+        </member>
+        <member name="M:Algorand2FAMultisig.MsigExtension.MsigExtension.MergeMultisigTransactions(Algorand.Algod.Model.Transactions.SignedTransaction[])">
+            <summary>
+            MergeMultisigTransactions merges the given (partially) signed multisig transactions.
+            </summary>
+            <param name="txs">partially signed multisig transactions to merge. Underlying transactions may be mutated.</param>
+            <returns>merged multisig transaction</returns>
+        </member>
+        <member name="M:Algorand2FAMultisig.MsigExtension.MsigExtension.AppendMultisigTransaction(Algorand.Algod.Model.Account,Algorand.MultisigAddress,Algorand.Algod.Model.Transactions.SignedTransaction)">
+            <summary>
+            AppendMultisigTransaction appends our signature to the given multisig transaction.
+            </summary>
+            <param name="account">Account from which to add the signature</param>
+            <param name="from">the multisig public identity we are signing for</param>
+            <param name="signedTx">the partially signed msig tx to which to append signature</param>
+            <returns>merged multisig transaction</returns>
+        </member>
+        <member name="T:Algorand2FAMultisig.Program">
+            <summary>
+            Main entry point
+            </summary>
+        </member>
+        <member name="M:Algorand2FAMultisig.Program.Main(System.String[])">
+            <summary>
+            Main entry point
+            </summary>
+            <param name="args"></param>
+        </member>
+    </members>
+</doc>

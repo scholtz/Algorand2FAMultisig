@@ -3,12 +3,16 @@ using Algorand;
 
 namespace Algorand2FAMultisig.MsigExtension
 {
+    /// <summary>
+    /// MsigExtension
+    /// </summary>
     public static class MsigExtension
     {
         #region Multisignature support
         /// <summary>
         /// SignMultisigTransaction creates a multisig transaction from the input and the multisig account.
         /// </summary>
+        /// <param name="account">Account to sign it with</param>
         /// <param name="from">sign as this multisignature account</param>
         /// <param name="tx">the transaction to sign</param>
         /// <returns>SignedTransaction a partially signed multisig transaction</returns>
@@ -36,7 +40,7 @@ namespace Algorand2FAMultisig.MsigExtension
             }
             // now, create the multisignature
             SignedTransaction txSig = tx.Sign(account);
-            MultisigSignature mSig = new MultisigSignature(from.version, from.threshold);
+            MultisigSignature mSig = new(from.version, from.threshold);
             for (int i = 0; i < from.publicKeys.Count; i++)
             {
                 if (i == myI)
@@ -96,6 +100,7 @@ namespace Algorand2FAMultisig.MsigExtension
         /// <summary>
         /// AppendMultisigTransaction appends our signature to the given multisig transaction.
         /// </summary>
+        /// <param name="account">Account from which to add the signature</param>
         /// <param name="from">the multisig public identity we are signing for</param>
         /// <param name="signedTx">the partially signed msig tx to which to append signature</param>
         /// <returns>merged multisig transaction</returns>
