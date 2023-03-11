@@ -227,6 +227,21 @@ namespace Algorand2FAMultisig.Controllers
             try
             {
                 logger?.LogError($"{User?.Identity?.Name}:SignValidateTwoFactorPIN");
+                if (string.IsNullOrEmpty(txtCode))
+                {
+                    throw new ArgumentException($"'{nameof(txtCode)}' cannot be null or empty.", nameof(txtCode));
+                }
+
+                if (msigConfig is null)
+                {
+                    throw new ArgumentNullException(nameof(msigConfig));
+                }
+
+                if (tx is null)
+                {
+                    throw new ArgumentNullException(nameof(tx));
+                }
+
                 TwoFactorAuthenticator tfa = new();
 
                 var seed = ComputeSHA256HashBytes($"{User?.Identity?.Name}-{configuration["Algo:Mnemonic"]}");
@@ -264,7 +279,23 @@ namespace Algorand2FAMultisig.Controllers
         {
             try
             {
+
                 logger?.LogError($"{User?.Identity?.Name}:SignValidateTwoFactorPINBase64Tx");
+                if (string.IsNullOrEmpty(txtCode))
+                {
+                    throw new ArgumentException($"'{nameof(txtCode)}' cannot be null or empty.", nameof(txtCode));
+                }
+
+                if (msigConfig is null)
+                {
+                    throw new ArgumentNullException(nameof(msigConfig));
+                }
+
+                if (string.IsNullOrEmpty(signedTx))
+                {
+                    throw new ArgumentException($"'{nameof(signedTx)}' cannot be null or empty.", nameof(signedTx));
+                }
+
                 if (string.IsNullOrEmpty(signedTx)) throw new Exception("signedTx is empty");
                 var signedTxBytes = Convert.FromBase64String(signedTx);
                 if (signedTxBytes == null) throw new Exception("Error in signedTx");
@@ -284,6 +315,64 @@ namespace Algorand2FAMultisig.Controllers
                 })));
                 var newSignedTxObj = signedTxObj.AppendMultisigTransaction(msig, account);
                 return Ok(Convert.ToBase64String(Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(newSignedTxObj))));
+            }
+            catch (Exception exc)
+            {
+                logger?.LogError(exc.Message);
+                return BadRequest(new ProblemDetails() { Detail = exc.Message });
+            }
+        }
+        /// <summary>
+        /// Do multisig signing with json object from base64 and return SignedTransaction json object with signature
+        /// </summary>
+        /// <param name="txtCode"></param>
+        /// <param name="msigConfig"></param>
+        /// <param name="signedTx">Msg pack in base64</param>
+        /// <returns></returns>
+        [Authorize]
+        [HttpPost("SignValidateTwoFactorPINBase64MsgPackTx")]
+        public IActionResult SignValidateTwoFactorPINBase64MsgPackTx([FromForm] string txtCode, [FromForm] Model.Multisig msigConfig, [FromForm] string signedTx)
+        {
+            try
+            {
+                logger?.LogError($"{User?.Identity?.Name}:SignValidateTwoFactorPINBase64MessagePackTx");
+
+                if (string.IsNullOrEmpty(txtCode))
+                {
+                    throw new ArgumentException($"'{nameof(txtCode)}' cannot be null or empty.", nameof(txtCode));
+                }
+
+                if (msigConfig is null)
+                {
+                    throw new ArgumentNullException(nameof(msigConfig));
+                }
+
+                if (string.IsNullOrEmpty(signedTx))
+                {
+                    throw new ArgumentException($"'{nameof(signedTx)}' cannot be null or empty.", nameof(signedTx));
+                }
+
+                if (string.IsNullOrEmpty(signedTx)) throw new Exception("signedTx is empty");
+                var signedTxBytes = Convert.FromBase64String(signedTx);
+                if (signedTxBytes == null) throw new Exception("Error in signedTx");
+
+                var signedTxObj = Algorand.Utils.Encoder.DecodeFromMsgPack<SignedTransaction>(signedTxBytes);
+                if (signedTxObj == null) throw new Exception("Error in signedTxBytes");
+                TwoFactorAuthenticator tfa = new();
+                var seed = ComputeSHA256HashBytes($"{User?.Identity?.Name}-{configuration["Algo:Mnemonic"]}");
+                var account = new Algorand.Algod.Model.Account(seed);
+                var key = ComputeSHA256Hash($"{account.Address}-{configuration["Algo:Mnemonic"]}");
+
+                bool result = tfa.ValidateTwoFactorPIN(key, txtCode);
+                if (!result) throw new Exception("Invalid PIN");
+                var msig = new MultisigAddress(msigConfig.Version, msigConfig.Threshold, new List<Ed25519PublicKeyParameters>(msigConfig.Signators.Select(a =>
+                {
+                    var addr = new Address(a);
+                    return new Ed25519PublicKeyParameters(addr.Bytes, 0);
+                })));
+                var newSignedTxObj = signedTxObj.AppendMultisigTransaction(msig, account);
+                var messagePack = Algorand.Utils.Encoder.EncodeToMsgPackOrdered(newSignedTxObj);
+                return Ok(Convert.ToBase64String(messagePack));
             }
             catch (Exception exc)
             {
