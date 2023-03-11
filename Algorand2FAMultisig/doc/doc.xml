@@ -91,6 +91,15 @@
             <param name="signedTx"></param>
             <returns></returns>
         </member>
+        <member name="M:Algorand2FAMultisig.Controllers.MultisigController.SignValidateTwoFactorPINBase64MsgPackTx(System.String,System.String,System.String)">
+            <summary>
+            Do multisig signing with json object from base64 and return SignedTransaction json object with signature
+            </summary>
+            <param name="txtCode"></param>
+            <param name="msigConfig"></param>
+            <param name="signedTxMsgPack">Msg pack in base64</param>
+            <returns></returns>
+        </member>
         <member name="T:Algorand2FAMultisig.Model.Multisig">
             <summary>
             Multisig comm object

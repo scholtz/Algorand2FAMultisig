@@ -325,13 +325,13 @@ namespace Algorand2FAMultisig.Controllers
         /// <summary>
         /// Do multisig signing with json object from base64 and return SignedTransaction json object with signature
         /// </summary>
-        /// <param name="txtCode"></param>
-        /// <param name="msigConfig"></param>
-        /// <param name="signedTx">Msg pack in base64</param>
+        /// <param name="txtCode">PIN from authenticator app</param>
+        /// <param name="msigConfigBase64">msigConfig in base64</param>
+        /// <param name="signedTxMsgPack">signed Tx in msg pack</param>
         /// <returns></returns>
         [Authorize]
         [HttpPost("SignValidateTwoFactorPINBase64MsgPackTx")]
-        public IActionResult SignValidateTwoFactorPINBase64MsgPackTx([FromForm] string txtCode, [FromForm] Model.Multisig msigConfig, [FromForm] string signedTx)
+        public IActionResult SignValidateTwoFactorPINBase64MsgPackTx([FromForm] string txtCode, [FromForm] string msigConfigBase64, [FromForm] string signedTxMsgPack)
         {
             try
             {
@@ -342,18 +342,24 @@ namespace Algorand2FAMultisig.Controllers
                     throw new ArgumentException($"'{nameof(txtCode)}' cannot be null or empty.", nameof(txtCode));
                 }
 
-                if (msigConfig is null)
+                if (msigConfigBase64 is null)
                 {
-                    throw new ArgumentNullException(nameof(msigConfig));
+                    throw new ArgumentNullException(nameof(msigConfigBase64));
                 }
 
-                if (string.IsNullOrEmpty(signedTx))
+                if (string.IsNullOrEmpty(signedTxMsgPack))
                 {
-                    throw new ArgumentException($"'{nameof(signedTx)}' cannot be null or empty.", nameof(signedTx));
+                    throw new ArgumentException($"'{nameof(signedTxMsgPack)}' cannot be null or empty.", nameof(signedTxMsgPack));
+                }
+                var msigConfig = JsonConvert.DeserializeObject<Model.Multisig>(msigConfigBase64);
+
+                if (msigConfig == null || msigConfig.Version <= 0 || msigConfig.Threshold <= 0)
+                {
+                    throw new ArgumentException($"'{nameof(signedTxMsgPack)}' cannot be null or empty. Deserialized object is null.", nameof(signedTxMsgPack));
                 }
 
-                if (string.IsNullOrEmpty(signedTx)) throw new Exception("signedTx is empty");
-                var signedTxBytes = Convert.FromBase64String(signedTx);
+                if (string.IsNullOrEmpty(signedTxMsgPack)) throw new Exception("signedTx is empty");
+                var signedTxBytes = Convert.FromBase64String(signedTxMsgPack);
                 if (signedTxBytes == null) throw new Exception("Error in signedTx");
 
                 var signedTxObj = Algorand.Utils.Encoder.DecodeFromMsgPack<SignedTransaction>(signedTxBytes);
