@@ -323,7 +323,7 @@ namespace Algorand2FAMultisig.Controllers
             }
         }
         /// <summary>
-        /// Do multisig signing with json object from base64 and return SignedTransaction json object with signature
+        /// Do multisig signing with msg pack object from base64 and return SignedTransaction json object in msgpack base64 with signature
         /// </summary>
         /// <param name="txtCode">PIN from authenticator app</param>
         /// <param name="msigConfigBase64">msigConfig in base64</param>
