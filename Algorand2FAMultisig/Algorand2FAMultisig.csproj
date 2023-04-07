@@ -11,10 +11,10 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Algorand2" Version="1.0.0.15" />
+    <PackageReference Include="Algorand2" Version="2.0.0.2023031711" />
     <PackageReference Include="AlgorandAuthentication" Version="1.0.7" />
     <PackageReference Include="GoogleAuthenticator" Version="3.0.0" />
-    <PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.17.0" />
+    <PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.18.1" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.5.0" />
     <PackageReference Include="Swashbuckle.AspNetCore.Filters" Version="7.0.6" />

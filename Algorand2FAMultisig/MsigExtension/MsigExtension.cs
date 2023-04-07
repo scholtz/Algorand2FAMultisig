@@ -65,37 +65,109 @@ namespace Algorand2FAMultisig.MsigExtension
             {
                 throw new ArgumentException("cannot merge a single transaction");
             }
-            SignedTransaction merged = txs[0];
+            SignedTransaction merged = txs.FirstOrDefault(txs => txs.MSig?.Version != null);
+            if (merged == null) throw new ArgumentException("At least one transaction must have multisig configuration");
+            var emptySig = new Signature();
             for (int i = 0; i < txs.Length; i++)
             {
                 // check that multisig parameters match
                 SignedTransaction tx = txs[i];
-                if (tx.MSig.Version != merged.MSig.Version ||
-                        tx.MSig.Threshold != merged.MSig.Threshold)
+
+                if (tx.MSig != null) // check only signed
                 {
-                    throw new ArgumentException("transaction msig parameters do not match");
+                    if (tx.MSig.Version != merged.MSig.Version ||
+                        tx.MSig.Threshold != merged.MSig.Threshold)
+                    {
+                        throw new ArgumentException("transaction msig parameters do not match");
+                    }
                 }
-                for (int j = 0; j < tx.MSig.Subsigs.Count; j++)
+                for (int j = 0; j < merged.MSig.Subsigs.Count; j++)
                 {
                     MultisigSubsig myMsig = merged.MSig.Subsigs[j];
-                    MultisigSubsig theirMsig = tx.MSig.Subsigs[j];
-                    if (!theirMsig.key.Equals(myMsig.key))
+                    if (myMsig.sig != null && !myMsig.sig.Equals(emptySig)) continue; // skip if this tx is already signed
+                    if (tx.MSig != null)
                     {
-                        throw new ArgumentException("transaction msig public keys do not match");
+                        MultisigSubsig theirMsig = tx.MSig.Subsigs[j];
+                        if (!theirMsig.key.Equals(myMsig.key))
+                        {
+                            throw new ArgumentException("transaction msig public keys do not match");
+                        }
+                        if (myMsig.sig.Equals(emptySig))
+                        {
+                            myMsig.sig = theirMsig.sig;
+                        }
+                        else if (!myMsig.sig.Equals(theirMsig.sig) &&
+                              !theirMsig.sig.Equals(emptySig))
+                        {
+                            throw new ArgumentException("transaction msig has mismatched signatures");
+                        }
+                        merged.MSig.Subsigs[j] = myMsig;
                     }
-                    if (myMsig.sig.Equals(new Signature()))
+                    else
                     {
-                        myMsig.sig = theirMsig.sig;
+                        // check if we should merge non msig signature
+                        
+                        if(tx.AuthAddr != null) {
+                            // fill in if we have information on who signed the tx
+                            if (merged.MSig.Subsigs[j].key.GetEncoded().SequenceEqual(tx.AuthAddr.Bytes))
+                            {
+                                merged.MSig.Subsigs[j].sig = tx.Sig;
+                            }
+                        }
+                        
                     }
-                    else if (!myMsig.sig.Equals(theirMsig.sig) &&
-                          !theirMsig.sig.Equals(new Signature()))
-                    {
-                        throw new ArgumentException("transaction msig has mismatched signatures");
-                    }
-                    merged.MSig.Subsigs[j] = myMsig;
                 }
             }
             return merged;
+        }
+
+        /// <summary>
+        /// From algosdk lib
+        /// </summary>
+        /// <param name="txs"></param>
+        /// <returns></returns>
+        /// <exception cref="ArgumentException"></exception>
+        public static SignedTransaction MergeMultisigTransactions2(params SignedTransaction[] txs)
+        {
+            if (txs.Length < 2)
+            {
+                throw new ArgumentException("cannot merge a single transaction");
+            }
+
+            SignedTransaction signedTransaction = txs.FirstOrDefault(txs => txs.MSig != null);
+            foreach (SignedTransaction signedTransaction2 in txs)
+            {
+                if (signedTransaction2.MSig != null) // check only signed
+                {
+                    if (signedTransaction2.MSig.Version != signedTransaction.MSig.Version || signedTransaction2.MSig.Threshold != signedTransaction.MSig.Threshold)
+                    {
+                        throw new ArgumentException("transaction msig parameters do not match");
+                    }
+                }
+
+                for (int j = 0; j < signedTransaction2.MSig.Subsigs.Count; j++)
+                {
+                    MultisigSubsig multisigSubsig = signedTransaction.MSig.Subsigs[j];
+                    MultisigSubsig multisigSubsig2 = signedTransaction2.MSig.Subsigs[j];
+                    if (!multisigSubsig2.key.Equals(multisigSubsig.key))
+                    {
+                        throw new ArgumentException("transaction msig public keys do not match");
+                    }
+
+                    if (multisigSubsig.sig.Equals(new Signature()))
+                    {
+                        multisigSubsig.sig = multisigSubsig2.sig;
+                    }
+                    else if (!multisigSubsig.sig.Equals(multisigSubsig2.sig) && !multisigSubsig2.sig.Equals(new Signature()))
+                    {
+                        throw new ArgumentException("transaction msig has mismatched signatures");
+                    }
+
+                    signedTransaction.MSig.Subsigs[j] = multisigSubsig;
+                }
+            }
+
+            return signedTransaction;
         }
         /// <summary>
         /// AppendMultisigTransaction appends our signature to the given multisig transaction.

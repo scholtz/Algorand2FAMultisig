@@ -1,4 +1,3 @@
-using Algorand.Client;
 using AlgorandAuthentication;
 using Microsoft.OpenApi.Models;
 
@@ -54,6 +53,8 @@ namespace Algorand2FAMultisig
                  o.Realm = builder.Configuration["algod:realm"];
                  o.NetworkGenesisHash = builder.Configuration["algod:networkGenesisHash"];
              });
+
+            builder.Services.AddSingleton(typeof(Repository.Interface.IAuthenticatorApp), typeof(Repository.Implementation.GoogleAuthenticatorApp));
 
             var app = builder.Build();
 

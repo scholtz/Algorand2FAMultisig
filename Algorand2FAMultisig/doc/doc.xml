@@ -9,12 +9,14 @@
             API controller
             </summary>
         </member>
-        <member name="M:Algorand2FAMultisig.Controllers.MultisigController.#ctor(Microsoft.Extensions.Logging.ILogger{Algorand2FAMultisig.Controllers.MultisigController},Microsoft.Extensions.Configuration.IConfiguration)">
+        <member name="M:Algorand2FAMultisig.Controllers.MultisigController.#ctor(Microsoft.Extensions.Logging.ILogger{Algorand2FAMultisig.Controllers.MultisigController},Microsoft.Extensions.Configuration.IConfiguration,Algorand2FAMultisig.Repository.Interface.IAuthenticatorApp,System.String)">
             <summary>
             Constructor
             </summary>
             <param name="logger"></param>
             <param name="configuration"></param>
+            <param name="authenticatorApp"></param>
+            <param name="authUser">For testing purposes</param>
             <exception cref="T:System.Exception"></exception>
         </member>
         <member name="M:Algorand2FAMultisig.Controllers.MultisigController.ComputeSHA256Hash(System.String)">
@@ -43,7 +45,25 @@
             </summary>
             <returns></returns>
         </member>
+        <member name="M:Algorand2FAMultisig.Controllers.MultisigController.PasswordAccountAddress(System.String)">
+            <summary>
+            Shows the configured account for this 2FA system
+            </summary>
+            <returns></returns>
+        </member>
+        <member name="M:Algorand2FAMultisig.Controllers.MultisigController.PasswordAccountSign(System.String,System.String)">
+            <summary>
+            Shows the configured account for this 2FA system
+            </summary>
+            <returns></returns>
+        </member>
         <member name="M:Algorand2FAMultisig.Controllers.MultisigController.GetAddress">
+            <summary>
+            Shows the configured account for this 2FA system
+            </summary>
+            <returns></returns>
+        </member>
+        <member name="M:Algorand2FAMultisig.Controllers.MultisigController.MyAddress">
             <summary>
             Shows the configured account for this 2FA system
             </summary>
@@ -165,6 +185,14 @@
             </summary>
             <param name="txs">partially signed multisig transactions to merge. Underlying transactions may be mutated.</param>
             <returns>merged multisig transaction</returns>
+        </member>
+        <member name="M:Algorand2FAMultisig.MsigExtension.MsigExtension.MergeMultisigTransactions2(Algorand.Algod.Model.Transactions.SignedTransaction[])">
+            <summary>
+            From algosdk lib
+            </summary>
+            <param name="txs"></param>
+            <returns></returns>
+            <exception cref="T:System.ArgumentException"></exception>
         </member>
         <member name="M:Algorand2FAMultisig.MsigExtension.MsigExtension.AppendMultisigTransaction(Algorand.Algod.Model.Account,Algorand.MultisigAddress,Algorand.Algod.Model.Transactions.SignedTransaction)">
             <summary>
