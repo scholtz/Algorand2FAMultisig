@@ -282,6 +282,7 @@ namespace Algorand2FAMultisig.Controllers
                 return BadRequest(new ProblemDetails() { Detail = exc.Message });
             }
         }
+        /*
         /// <summary>
         /// Do multisig signing and return SignedTransaction json object 
         /// </summary>
@@ -389,6 +390,7 @@ namespace Algorand2FAMultisig.Controllers
                 return BadRequest(new ProblemDetails() { Detail = exc.Message });
             }
         }
+        */
         /// <summary>
         /// Do multisig signing with msg pack object from base64 and return SignedTransaction json object in msgpack base64 with signature
         /// </summary>
