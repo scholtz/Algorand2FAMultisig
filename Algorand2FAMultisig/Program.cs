@@ -55,13 +55,13 @@ namespace Algorand2FAMultisig
              });
 
             builder.Services.AddSingleton(typeof(Repository.Interface.IAuthenticatorApp), typeof(Repository.Implementation.GoogleAuthenticatorApp));
-
+            builder.Services.AddProblemDetails();
             var app = builder.Build();
 
             // Configure the HTTP request pipeline.
             app.UseSwagger();
             app.UseSwaggerUI();
-
+            
             app.UseAuthentication();
             app.UseAuthorization();
 

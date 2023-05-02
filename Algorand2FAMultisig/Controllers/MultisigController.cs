@@ -31,12 +31,12 @@ namespace Algorand2FAMultisig.Controllers
         /// <param name="authenticatorApp"></param>
         /// <param name="authUser">For testing purposes</param>
         /// <exception cref="Exception"></exception>
-        public MultisigController(ILogger<MultisigController> logger, IConfiguration configuration, IAuthenticatorApp authenticatorApp, string authUser)
+        public MultisigController(ILogger<MultisigController> logger, IConfiguration configuration, IAuthenticatorApp authenticatorApp)
         {
             this.logger = logger;
             this.configuration = configuration;
             this.authenticatorApp = authenticatorApp;
-            this.AuthUser = User?.Identity?.Name ?? authUser ?? "";
+            this.AuthUser = User?.Identity?.Name ?? "";
 
             if (string.IsNullOrEmpty(configuration["Algo:Mnemonic"])) throw new Exception("Please configure Algo:Mnemonic in secrets");
             // _ = new Algorand.Algod.Model.Account(configuration["Algo:Mnemonic"]); // in Algo:Mnemonic is stored key for generating accounts

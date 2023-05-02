@@ -9,7 +9,7 @@
             API controller
             </summary>
         </member>
-        <member name="M:Algorand2FAMultisig.Controllers.MultisigController.#ctor(Microsoft.Extensions.Logging.ILogger{Algorand2FAMultisig.Controllers.MultisigController},Microsoft.Extensions.Configuration.IConfiguration,Algorand2FAMultisig.Repository.Interface.IAuthenticatorApp,System.String)">
+        <member name="M:Algorand2FAMultisig.Controllers.MultisigController.#ctor(Microsoft.Extensions.Logging.ILogger{Algorand2FAMultisig.Controllers.MultisigController},Microsoft.Extensions.Configuration.IConfiguration,Algorand2FAMultisig.Repository.Interface.IAuthenticatorApp)">
             <summary>
             Constructor
             </summary>
@@ -91,24 +91,6 @@
             Test 2FA auth
             </summary>
             <param name="txtCode"></param>
-            <returns></returns>
-        </member>
-        <member name="M:Algorand2FAMultisig.Controllers.MultisigController.SignValidateTwoFactorPIN(System.String,Algorand2FAMultisig.Model.Multisig,Algorand.Algod.Model.Transactions.SignedTransaction)">
-            <summary>
-            Do multisig signing and return SignedTransaction json object 
-            </summary>
-            <param name="txtCode"></param>
-            <param name="msigConfig"></param>
-            <param name="tx"></param>
-            <returns></returns>
-        </member>
-        <member name="M:Algorand2FAMultisig.Controllers.MultisigController.SignValidateTwoFactorPINBase64Tx(System.String,Algorand2FAMultisig.Model.Multisig,System.String)">
-            <summary>
-            Do multisig signing with json object from base64 and return SignedTransaction json object with signature
-            </summary>
-            <param name="txtCode"></param>
-            <param name="msigConfig"></param>
-            <param name="signedTx"></param>
             <returns></returns>
         </member>
         <member name="M:Algorand2FAMultisig.Controllers.MultisigController.SignValidateTwoFactorPINBase64MsgPackTx(System.String,System.String,System.String)">
