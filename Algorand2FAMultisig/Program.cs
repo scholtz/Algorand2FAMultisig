@@ -56,12 +56,25 @@ namespace Algorand2FAMultisig
 
             builder.Services.AddSingleton(typeof(Repository.Interface.IAuthenticatorApp), typeof(Repository.Implementation.GoogleAuthenticatorApp));
             builder.Services.AddProblemDetails();
+
+            builder.Services.AddCors(options =>
+            {
+                options.AddDefaultPolicy(
+                policy =>
+                {
+                    policy.SetIsOriginAllowed(origin => true);
+                    policy.AllowAnyHeader();
+                    policy.AllowAnyMethod();
+                    policy.AllowCredentials();
+                });
+            });
+
             var app = builder.Build();
 
             // Configure the HTTP request pipeline.
             app.UseSwagger();
             app.UseSwaggerUI();
-            
+            app.UseCors();
             app.UseAuthentication();
             app.UseAuthorization();
 
