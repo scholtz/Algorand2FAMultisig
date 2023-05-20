@@ -70,7 +70,7 @@ namespace Algorand2FAMultisig.Controllers
         {
             try
             {
-                logger?.LogError($"{AuthUser}:GetMasterPasswordHash");
+                logger?.LogInformation($"GetMasterPasswordHash");
                 return Ok(ComputeSHA256Hash($"{configuration["Algo:Mnemonic"]}"));
             }
             catch (Exception exc)
@@ -88,7 +88,7 @@ namespace Algorand2FAMultisig.Controllers
         {
             try
             {
-                logger?.LogError($"{AuthUser}:GetRealm");
+                logger?.LogInformation($"{AuthUser}:GetRealm");
                 return Ok($"{configuration["algod:realm"]}");
             }
             catch (Exception exc)
@@ -163,7 +163,7 @@ namespace Algorand2FAMultisig.Controllers
         {
             try
             {
-                logger?.LogError($"{AuthUser}:GetAddress");
+                logger?.LogInformation($"{AuthUser}:GetAddress");
                 var seed = ComputeSHA256HashBytes($"{AuthUser}-{configuration["Algo:Mnemonic"]}");
                 var account = new Algorand.Algod.Model.Account(seed);
                 return Ok(account.Address.EncodeAsString());
@@ -184,7 +184,7 @@ namespace Algorand2FAMultisig.Controllers
         {
             try
             {
-                logger?.LogError($"{AuthUser}:MyAddress");
+                logger?.LogInformation($"{AuthUser}:MyAddress");
                 return Ok(AuthUser);
             }
             catch (Exception exc)
@@ -193,60 +193,66 @@ namespace Algorand2FAMultisig.Controllers
                 return BadRequest(new ProblemDetails() { Detail = exc.Message });
             }
         }
-        /// <summary>
-        /// Ask for QR code. Returns image with additional information in headers.
-        /// 
-        /// In X-2FA header is setup object
-        /// in X-Address header is the configured address
-        /// </summary>
-        /// <param name="accountTitleNoSpaces">The user account or source system. It is shown in the Authenticator app</param>
-        /// <returns></returns>
-        [Authorize]
-        [HttpPost("SetupGoogleAuthenticator")]
-        public IActionResult SetupGoogleAuthenticator([FromForm] string accountTitleNoSpaces)
-        {
-            try
-            {
-                logger?.LogError($"{AuthUser}:SetupGoogleAuthenticator");
+        ///// <summary>
+        ///// Ask for QR code. Returns image with additional information in headers.
+        ///// 
+        ///// In X-2FA header is setup object
+        ///// in X-Address header is the configured address
+        ///// </summary>
+        ///// <param name="accountTitleNoSpaces">The user account or source system. It is shown in the Authenticator app</param>
+        ///// <returns></returns>
+        //[Authorize]
+        //[HttpPost("SetupGoogleAuthenticator")]
+        //public IActionResult SetupGoogleAuthenticator([FromForm] string accountTitleNoSpaces)
+        //{
+        //    try
+        //    {
+        //        logger?.LogError($"{AuthUser}:SetupGoogleAuthenticator");
 
-                var seed = ComputeSHA256HashBytes($"{AuthUser}-{configuration["Algo:Mnemonic"]}");
-                var account = new Algorand.Algod.Model.Account(seed);
-                var key = ComputeSHA256Hash($"{account.Address}-{configuration["Algo:Mnemonic"]}");
+        //        var seed = ComputeSHA256HashBytes($"{AuthUser}-{configuration["Algo:Mnemonic"]}");
+        //        var account = new Algorand.Algod.Model.Account(seed);
+        //        var key = ComputeSHA256Hash($"{account.Address}-{configuration["Algo:Mnemonic"]}");
 
-                var setupInfo = authenticatorApp.GenerateSetupCode(account, accountTitleNoSpaces, key, false, 3);
+        //        var setupInfo = authenticatorApp.GenerateSetupCode(account, accountTitleNoSpaces, key, false, 3);
 
-                string qrCodeImageUrl = setupInfo.QrCodeSetupImageUrl;
+        //        string qrCodeImageUrl = setupInfo.QrCodeSetupImageUrl;
 
-                // data:image/png;base64,iVBORw..
-                var b = Convert.FromBase64String(qrCodeImageUrl[(qrCodeImageUrl.IndexOf(",") + 1)..]);
-                Response.Headers.Add("X-2FA", JsonConvert.SerializeObject(setupInfo));
-                Response.Headers.Add("X-Address", account.Address.EncodeAsString());
-                return File(b, "image/png");
-            }
-            catch (Exception exc)
-            {
-                logger?.LogError(exc.Message);
-                return BadRequest(new ProblemDetails() { Detail = exc.Message });
-            }
-        }
+        //        // data:image/png;base64,iVBORw..
+        //        var b = Convert.FromBase64String(qrCodeImageUrl[(qrCodeImageUrl.IndexOf(",") + 1)..]);
+        //        Response.Headers.Add("X-2FA", JsonConvert.SerializeObject(setupInfo));
+        //        Response.Headers.Add("X-Address", account.Address.EncodeAsString());
+        //        return File(b, "image/png");
+        //    }
+        //    catch (Exception exc)
+        //    {
+        //        logger?.LogError(exc.Message);
+        //        return BadRequest(new ProblemDetails() { Detail = exc.Message });
+        //    }
+        //}
         /// <summary>
         /// Ask for QR code
         /// </summary>
         /// <param name="accountTitleNoSpaces">The user account or source system. It is shown in the Authenticator app</param>
         /// <returns>Model.SetupReturn</returns>
         [Authorize]
-        [HttpPost("SetupGoogleAuthenticatorJson")]
-        public ActionResult<Model.SetupReturn> SetupGoogleAuthenticatorJson([FromForm] string accountTitleNoSpaces)
+        [HttpPost("SetupAuthenticator")]
+        public ActionResult<Model.SetupReturn> SetupAuthenticator([FromForm] string accountTitleNoSpaces, [FromForm] string secondaryAccount)
         {
             try
             {
-                logger?.LogError($"{AuthUser}:SetupGoogleAuthenticatorJson");
+                logger?.LogInformation($"{AuthUser}:SetupAuthenticator");
 
+                // TODO check from the DB if secondary account has been setup for this account already (it is stored at ConfirmSetupAuthenticator method)
+                // if secondary account exists, deny this request
+
+                logger?.LogError($"{AuthUser}:SetupAuthenticator TODO check from the DB if secondary account {secondaryAccount}");
 
                 var seed = ComputeSHA256HashBytes($"{AuthUser}-{configuration["Algo:Mnemonic"]}");
                 var account = new Algorand.Algod.Model.Account(seed);
                 var key = ComputeSHA256Hash($"{account.Address}-{configuration["Algo:Mnemonic"]}");
                 var ret = authenticatorApp.GenerateSetupCode(account, accountTitleNoSpaces, key, false, 3);
+
+
                 return Ok(ret);
             }
             catch (Exception exc)
@@ -261,12 +267,45 @@ namespace Algorand2FAMultisig.Controllers
         /// <param name="txtCode"></param>
         /// <returns></returns>
         [Authorize]
+        [HttpPost("ConfirmSetupAuthenticator")]
+        public ActionResult<bool> ConfirmSetupAuthenticator([FromForm] string txtCode, [FromForm] string secondaryAccount)
+        {
+            try
+            {
+                // TODO check from the DB if secondary account has been setup for this account already
+                // if secondary account exists, deny this request
+
+                logger?.LogInformation($"{AuthUser}:TestValidateTwoFactorPIN");
+
+                var seed = ComputeSHA256HashBytes($"{AuthUser}-{configuration["Algo:Mnemonic"]}");
+                var account = new Algorand.Algod.Model.Account(seed);
+                var key = ComputeSHA256Hash($"{account.Address}-{configuration["Algo:Mnemonic"]}");
+
+                bool result = authenticatorApp.ValidateTwoFactorPIN(key, txtCode);
+
+                // TODO .. save secondaryAccount
+
+                return Ok(result);
+            }
+            catch (Exception exc)
+            {
+                logger?.LogError(exc.Message);
+                return BadRequest(new ProblemDetails() { Detail = exc.Message });
+            }
+        }
+
+        /// <summary>
+        /// Test 2FA auth
+        /// </summary>
+        /// <param name="txtCode"></param>
+        /// <returns></returns>
+        [Authorize]
         [HttpPost("TestValidateTwoFactorPIN")]
         public ActionResult<bool> TestValidateTwoFactorPIN([FromForm] string txtCode)
         {
             try
             {
-                logger?.LogError($"{AuthUser}:TestValidateTwoFactorPIN");
+                logger?.LogInformation($"{AuthUser}:TestValidateTwoFactorPIN");
 
                 var seed = ComputeSHA256HashBytes($"{AuthUser}-{configuration["Algo:Mnemonic"]}");
                 var account = new Algorand.Algod.Model.Account(seed);
@@ -282,115 +321,7 @@ namespace Algorand2FAMultisig.Controllers
                 return BadRequest(new ProblemDetails() { Detail = exc.Message });
             }
         }
-        /*
-        /// <summary>
-        /// Do multisig signing and return SignedTransaction json object 
-        /// </summary>
-        /// <param name="txtCode"></param>
-        /// <param name="msigConfig"></param>
-        /// <param name="tx"></param>
-        /// <returns></returns>
-        [Authorize]
-        [HttpPost("SignValidateTwoFactorPIN")]
-        public IActionResult SignValidateTwoFactorPIN([FromForm] string txtCode, [FromForm] Model.Multisig msigConfig, [FromForm] SignedTransaction tx)
-        {
-            try
-            {
-                logger?.LogError($"{AuthUser}:SignValidateTwoFactorPIN");
-                if (string.IsNullOrEmpty(txtCode))
-                {
-                    throw new ArgumentException($"'{nameof(txtCode)}' cannot be null or empty.", nameof(txtCode));
-                }
 
-                if (msigConfig is null)
-                {
-                    throw new ArgumentNullException(nameof(msigConfig));
-                }
-
-                if (tx is null)
-                {
-                    throw new ArgumentNullException(nameof(tx));
-                }
-
-
-                var seed = ComputeSHA256HashBytes($"{AuthUser}-{configuration["Algo:Mnemonic"]}");
-                var account = new Algorand.Algod.Model.Account(seed);
-                var key = ComputeSHA256Hash($"{account.Address}-{configuration["Algo:Mnemonic"]}");
-
-                bool result = authenticatorApp.ValidateTwoFactorPIN(key, txtCode);
-                if (!result) throw new Exception("Invalid PIN");
-
-                var msig = new MultisigAddress(msigConfig.Version, msigConfig.Threshold, new List<Ed25519PublicKeyParameters>(msigConfig.Signators.Select(a =>
-                {
-                    var addr = new Address(a);
-                    return new Ed25519PublicKeyParameters(addr.Bytes, 0);
-                })));
-
-                return Ok(tx.AppendMultisigTransaction(msig, account));
-
-            }
-            catch (Exception exc)
-            {
-                logger?.LogError(exc.Message);
-                return BadRequest(new ProblemDetails() { Detail = exc.Message });
-            }
-        }
-        /// <summary>
-        /// Do multisig signing with json object from base64 and return SignedTransaction json object with signature
-        /// </summary>
-        /// <param name="txtCode"></param>
-        /// <param name="msigConfig"></param>
-        /// <param name="signedTx"></param>
-        /// <returns></returns>
-        [Authorize]
-        [HttpPost("SignValidateTwoFactorPINBase64Tx")]
-        public IActionResult SignValidateTwoFactorPINBase64Tx([FromForm] string txtCode, [FromForm] Model.Multisig msigConfig, [FromForm] string signedTx)
-        {
-            try
-            {
-
-                logger?.LogError($"{AuthUser}:SignValidateTwoFactorPINBase64Tx");
-                if (string.IsNullOrEmpty(txtCode))
-                {
-                    throw new ArgumentException($"'{nameof(txtCode)}' cannot be null or empty.", nameof(txtCode));
-                }
-
-                if (msigConfig is null)
-                {
-                    throw new ArgumentNullException(nameof(msigConfig));
-                }
-
-                if (string.IsNullOrEmpty(signedTx))
-                {
-                    throw new ArgumentException($"'{nameof(signedTx)}' cannot be null or empty.", nameof(signedTx));
-                }
-
-                if (string.IsNullOrEmpty(signedTx)) throw new Exception("signedTx is empty");
-                var signedTxBytes = Convert.FromBase64String(signedTx);
-                if (signedTxBytes == null) throw new Exception("Error in signedTx");
-                var signedTxObj = JsonConvert.DeserializeObject<SignedTransaction>(Encoding.UTF8.GetString(signedTxBytes));
-                if (signedTxObj == null) throw new Exception("Error in signedTxBytes");
-                var seed = ComputeSHA256HashBytes($"{AuthUser}-{configuration["Algo:Mnemonic"]}");
-                var account = new Algorand.Algod.Model.Account(seed);
-                var key = ComputeSHA256Hash($"{account.Address}-{configuration["Algo:Mnemonic"]}");
-
-                bool result = authenticatorApp.ValidateTwoFactorPIN(key, txtCode);
-                if (!result) throw new Exception("Invalid PIN");
-                var msig = new MultisigAddress(msigConfig.Version, msigConfig.Threshold, new List<Ed25519PublicKeyParameters>(msigConfig.Signators.Select(a =>
-                {
-                    var addr = new Address(a);
-                    return new Ed25519PublicKeyParameters(addr.Bytes, 0);
-                })));
-                var newSignedTxObj = signedTxObj.AppendMultisigTransaction(msig, account);
-                return Ok(Convert.ToBase64String(Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(newSignedTxObj))));
-            }
-            catch (Exception exc)
-            {
-                logger?.LogError(exc.Message);
-                return BadRequest(new ProblemDetails() { Detail = exc.Message });
-            }
-        }
-        */
         /// <summary>
         /// Do multisig signing with msg pack object from base64 and return SignedTransaction json object in msgpack base64 with signature
         /// </summary>
@@ -404,7 +335,7 @@ namespace Algorand2FAMultisig.Controllers
         {
             try
             {
-                logger?.LogError($"{AuthUser}:SignValidateTwoFactorPINBase64MessagePackTx");
+                logger?.LogInformation($"{AuthUser}:SignValidateTwoFactorPINBase64MessagePackTx");
 
                 if (string.IsNullOrEmpty(txtCode))
                 {
