@@ -22,14 +22,13 @@ namespace Algorand2FAMultisig.Controllers
         private readonly ILogger<MultisigController> logger;
         private readonly IConfiguration configuration;
         private readonly IAuthenticatorApp authenticatorApp;
-        private readonly string AuthUser;
+        private string AuthUser;
         /// <summary>
         /// Constructor
         /// </summary>
         /// <param name="logger"></param>
         /// <param name="configuration"></param>
         /// <param name="authenticatorApp"></param>
-        /// <param name="authUser">For testing purposes</param>
         /// <exception cref="Exception"></exception>
         public MultisigController(ILogger<MultisigController> logger, IConfiguration configuration, IAuthenticatorApp authenticatorApp)
         {
@@ -42,6 +41,13 @@ namespace Algorand2FAMultisig.Controllers
             // _ = new Algorand.Algod.Model.Account(configuration["Algo:Mnemonic"]); // in Algo:Mnemonic is stored key for generating accounts
         }
         /// <summary>
+        /// For testing purposes only
+        /// </summary>
+        public void SetAuthUser(string AuthUser)
+        {
+            this.AuthUser = AuthUser;
+        }
+        /// <summary>
         /// SHA256
         /// </summary>
         /// <param name="text"></param>
@@ -51,6 +57,11 @@ namespace Algorand2FAMultisig.Controllers
             using var sha256 = SHA256.Create();
             return BitConverter.ToString(sha256.ComputeHash(Encoding.UTF8.GetBytes(text))).Replace("-", "").ToLower();
         }
+        /// <summary>
+        /// Unifies the code.. Trim and remove -.
+        /// </summary>
+        /// <param name="txtCode"></param>
+        /// <returns></returns>
         public static string UniformTxtCode(string txtCode)
         {
             return txtCode.Trim().Replace("-", "");
@@ -64,6 +75,15 @@ namespace Algorand2FAMultisig.Controllers
         {
             using var sha256 = SHA256.Create();
             return sha256.ComputeHash(Encoding.UTF8.GetBytes(text));
+        }
+        /// <summary>
+        /// Create seed for authenticated user and sedondary account with configuration password
+        /// </summary>
+        /// <param name="secondaryAccount"></param>
+        /// <returns></returns>
+        private byte[] CreateSeed(string secondaryAccount)
+        {
+            return ComputeSHA256HashBytes($"{AuthUser}-{configuration["Algo:Mnemonic"]}-{secondaryAccount}");
         }
         /// <summary>
         /// Shows the configured account for this 2FA system
@@ -162,13 +182,13 @@ namespace Algorand2FAMultisig.Controllers
         /// </summary>
         /// <returns></returns>
         [Authorize]
-        [HttpGet("GetAddress")]
-        public ActionResult<string> GetAddress()
+        [HttpGet("GetAddress/{secondaryAccount}")]
+        public ActionResult<string> GetAddress([FromRoute] string secondaryAccount)
         {
             try
             {
                 logger?.LogInformation($"{AuthUser}:GetAddress");
-                var seed = ComputeSHA256HashBytes($"{AuthUser}-{configuration["Algo:Mnemonic"]}");
+                var seed = CreateSeed(secondaryAccount);
                 var account = new Algorand.Algod.Model.Account(seed);
                 return Ok(account.Address.EncodeAsString());
             }
@@ -197,46 +217,11 @@ namespace Algorand2FAMultisig.Controllers
                 return BadRequest(new ProblemDetails() { Detail = exc.Message });
             }
         }
-        ///// <summary>
-        ///// Ask for QR code. Returns image with additional information in headers.
-        ///// 
-        ///// In X-2FA header is setup object
-        ///// in X-Address header is the configured address
-        ///// </summary>
-        ///// <param name="accountTitleNoSpaces">The user account or source system. It is shown in the Authenticator app</param>
-        ///// <returns></returns>
-        //[Authorize]
-        //[HttpPost("SetupGoogleAuthenticator")]
-        //public IActionResult SetupGoogleAuthenticator([FromForm] string accountTitleNoSpaces)
-        //{
-        //    try
-        //    {
-        //        logger?.LogError($"{AuthUser}:SetupGoogleAuthenticator");
-
-        //        var seed = ComputeSHA256HashBytes($"{AuthUser}-{configuration["Algo:Mnemonic"]}");
-        //        var account = new Algorand.Algod.Model.Account(seed);
-        //        var key = ComputeSHA256Hash($"{account.Address}-{configuration["Algo:Mnemonic"]}");
-
-        //        var setupInfo = authenticatorApp.GenerateSetupCode(account, accountTitleNoSpaces, key, false, 3);
-
-        //        string qrCodeImageUrl = setupInfo.QrCodeSetupImageUrl;
-
-        //        // data:image/png;base64,iVBORw..
-        //        var b = Convert.FromBase64String(qrCodeImageUrl[(qrCodeImageUrl.IndexOf(",") + 1)..]);
-        //        Response.Headers.Add("X-2FA", JsonConvert.SerializeObject(setupInfo));
-        //        Response.Headers.Add("X-Address", account.Address.EncodeAsString());
-        //        return File(b, "image/png");
-        //    }
-        //    catch (Exception exc)
-        //    {
-        //        logger?.LogError(exc.Message);
-        //        return BadRequest(new ProblemDetails() { Detail = exc.Message });
-        //    }
-        //}
         /// <summary>
         /// Ask for QR code
         /// </summary>
         /// <param name="accountTitleNoSpaces">The user account or source system. It is shown in the Authenticator app</param>
+        /// <param name="secondaryAccount">Recovery account</param>
         /// <returns>Model.SetupReturn</returns>
         [Authorize]
         [HttpPost("SetupAuthenticator")]
@@ -251,7 +236,7 @@ namespace Algorand2FAMultisig.Controllers
 
                 logger?.LogError($"{AuthUser}:SetupAuthenticator TODO check from the DB if secondary account {secondaryAccount}");
 
-                var seed = ComputeSHA256HashBytes($"{AuthUser}-{configuration["Algo:Mnemonic"]}");
+                var seed = CreateSeed(secondaryAccount);
                 var account = new Algorand.Algod.Model.Account(seed);
                 var key = ComputeSHA256Hash($"{account.Address}-{configuration["Algo:Mnemonic"]}");
                 var ret = authenticatorApp.GenerateSetupCode(account, accountTitleNoSpaces, key, false, 3);
@@ -268,11 +253,12 @@ namespace Algorand2FAMultisig.Controllers
         /// <summary>
         /// Test 2FA auth
         /// </summary>
-        /// <param name="txtCode"></param>
-        /// <returns></returns>
+        /// <param name="txtCode">Code from authenticator app</param>
+        /// <param name="secondaryAccount">Recovery account</param>
+        /// <returns>Returns the address to be added to multisig</returns>
         [Authorize]
         [HttpPost("ConfirmSetupAuthenticator")]
-        public ActionResult<bool> ConfirmSetupAuthenticator([FromForm] string txtCode, [FromForm] string secondaryAccount)
+        public ActionResult<string> ConfirmSetupAuthenticator([FromForm] string txtCode, [FromForm] string secondaryAccount)
         {
             try
             {
@@ -281,7 +267,7 @@ namespace Algorand2FAMultisig.Controllers
 
                 logger?.LogInformation($"{AuthUser}:TestValidateTwoFactorPIN");
 
-                var seed = ComputeSHA256HashBytes($"{AuthUser}-{configuration["Algo:Mnemonic"]}");
+                var seed = CreateSeed(secondaryAccount);
                 var account = new Algorand.Algod.Model.Account(seed);
                 var key = ComputeSHA256Hash($"{account.Address}-{configuration["Algo:Mnemonic"]}");
 
@@ -289,7 +275,7 @@ namespace Algorand2FAMultisig.Controllers
 
                 // TODO .. save secondaryAccount
 
-                return Ok(result);
+                return Ok(account.Address.EncodeAsString());
             }
             catch (Exception exc)
             {
@@ -301,17 +287,18 @@ namespace Algorand2FAMultisig.Controllers
         /// <summary>
         /// Test 2FA auth
         /// </summary>
-        /// <param name="txtCode"></param>
+        /// <param name="txtCode">Code from authenticator app</param>
+        /// <param name="secondaryAccount">Recovery account</param>
         /// <returns></returns>
         [Authorize]
         [HttpPost("TestValidateTwoFactorPIN")]
-        public ActionResult<bool> TestValidateTwoFactorPIN([FromForm] string txtCode)
+        public ActionResult<bool> TestValidateTwoFactorPIN([FromForm] string txtCode, [FromForm] string secondaryAccount)
         {
             try
             {
                 logger?.LogInformation($"{AuthUser}:TestValidateTwoFactorPIN");
 
-                var seed = ComputeSHA256HashBytes($"{AuthUser}-{configuration["Algo:Mnemonic"]}");
+                var seed = CreateSeed(secondaryAccount);
                 var account = new Algorand.Algod.Model.Account(seed);
                 var key = ComputeSHA256Hash($"{account.Address}-{configuration["Algo:Mnemonic"]}");
 
@@ -332,10 +319,11 @@ namespace Algorand2FAMultisig.Controllers
         /// <param name="txtCode">PIN from authenticator app</param>
         /// <param name="msigConfigBase64">msigConfig in base64</param>
         /// <param name="signedTxMsgPack">signed Tx in msg pack</param>
+        /// <param name="secondaryAccount">Recovery account</param>
         /// <returns></returns>
         [Authorize]
         [HttpPost("SignValidateTwoFactorPINBase64MsgPackTx")]
-        public ActionResult<string> SignValidateTwoFactorPINBase64MsgPackTx([FromForm] string txtCode, [FromForm] string msigConfigBase64, [FromForm] string signedTxMsgPack)
+        public ActionResult<string> SignValidateTwoFactorPINBase64MsgPackTx([FromForm] string txtCode, [FromForm] string msigConfigBase64, [FromForm] string signedTxMsgPack, [FromForm] string secondaryAccount)
         {
             try
             {
@@ -368,7 +356,7 @@ namespace Algorand2FAMultisig.Controllers
 
                 var signedTxObj = Algorand.Utils.Encoder.DecodeFromMsgPack<SignedTransaction>(signedTxBytes);
                 if (signedTxObj == null) throw new Exception("Error in signedTxBytes");
-                var seed = ComputeSHA256HashBytes($"{AuthUser}-{configuration["Algo:Mnemonic"]}");
+                var seed = CreateSeed(secondaryAccount);
                 var account = new Algorand.Algod.Model.Account(seed);
                 var key = ComputeSHA256Hash($"{account.Address}-{configuration["Algo:Mnemonic"]}");
 

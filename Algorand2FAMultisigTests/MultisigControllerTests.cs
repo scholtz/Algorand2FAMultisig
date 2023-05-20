@@ -22,18 +22,33 @@ namespace Algorand2FAMultisigTests
     public class MultisigControllerTests
     {
         private readonly MultisigController _controller;
-        private readonly string secret = "the string you want to return";
-
+        private readonly static string secret = "the string you want to return";
+        private readonly static string primaryAccount = "BSJZLXX34NSWJNCIQQ2DKQF6GFIJXHLIHXJFEKLRECMKRFJL6H6MY4ZJXQ";
+        private readonly static string secondaryAccount = "G56BAIRDZAJHERKPWDJSAKBW67MTIC5ZLGW26OWLLNITQVWLUZMLF5U7QA";
+        private readonly static string twoFaAccount = "PXOHOGCCUXQE5BFGF5Y5UII57GYIDX3STI3YFWRAVMFANZUERBPJN2M4CU";//"K6WWQVKWZ33WADKKX6BZOWVV5R2VI237LCXOBR24AWUH7IABLUHS2H36EE";
+        private readonly List<string> Accounts;
+        private readonly Algorand2FAMultisig.Model.Multisig MsigConfig;
+        private readonly MultisigAddress MultiAddress;
         public MultisigControllerTests()
         {
             var configuration = new Mock<Microsoft.Extensions.Configuration.IConfiguration>();
             configuration.SetupGet(x => x["Algo:Mnemonic"]).Returns(secret);
             configuration.SetupGet(x => x["Algo:TwoFactorName"]).Returns("TwoFactorTestName");
 
-            var authUser = "BSJZLXX34NSWJNCIQQ2DKQF6GFIJXHLIHXJFEKLRECMKRFJL6H6MY4ZJXQ";
+            Accounts = new List<string>() { twoFaAccount, primaryAccount, secondaryAccount };
+            Accounts.Sort();
+            MsigConfig = new Algorand2FAMultisig.Model.Multisig()
+            {
+                Signators = Accounts.ToArray(),
+                Threshold = 2,
+                Version = 1
+            };
+            MultiAddress = new MultisigAddress(1, 2, new List<byte[]> { new Address(MsigConfig.Signators[0]).Bytes, new Address(MsigConfig.Signators[1]).Bytes, new Address(MsigConfig.Signators[2]).Bytes });
+
             var logger = new Mock<ILogger<MultisigController>>();
             var authApp = new GoogleAuthenticatorApp(configuration.Object);
-            _controller = new MultisigController(logger.Object, configuration.Object, authApp, authUser);
+            _controller = new MultisigController(logger.Object, configuration.Object, authApp);
+            _controller.SetAuthUser(primaryAccount);
         }
 
         [SetUp]
@@ -44,7 +59,7 @@ namespace Algorand2FAMultisigTests
         [Test]
         public void SetupGoogleAuthenticatorJsonTest()
         {
-            var ret = _controller.SetupGoogleAuthenticatorJson("title");
+            var ret = _controller.SetupAuthenticator("title", secondaryAccount);
             var result = ret.Result as OkObjectResult;
             Assert.IsNotNull(result);
             var resultObj = result.Value as Algorand2FAMultisig.Model.SetupReturn;
@@ -52,10 +67,19 @@ namespace Algorand2FAMultisigTests
         }
 
         [Test]
+        public void GetAddressTest()
+        {
+            var ret = _controller.GetAddress(secondaryAccount);
+            var result = ret.Result as OkObjectResult;
+            Assert.That(result, Is.Not.Null);
+            var resultObj = result.Value?.ToString();
+            Assert.That(resultObj, Is.EqualTo(twoFaAccount));
+        }
+        [Test]
         public async Task SignValidateTwoFactorPINBase64MsgPackTxTest()
         {
-            var ret = _controller.SetupGoogleAuthenticatorJson("title");
-            var key = MultisigController.ComputeSHA256Hash($"BDICA3QGKI2WCR7PBSKRGDQAJKCHT55RKCX5GBDSOK5WFLI4XLTAALXTMQ-{secret}");
+            var ret = _controller.SetupAuthenticator("title", secondaryAccount);
+            var key = MultisigController.ComputeSHA256Hash($"{twoFaAccount}-{secret}");
             var result = ret.Result as OkObjectResult;
             Assert.IsNotNull(result);
             var resultObj = result.Value as Algorand2FAMultisig.Model.SetupReturn;
@@ -63,39 +87,25 @@ namespace Algorand2FAMultisigTests
             TwoFactorAuthenticator tfa = new();
             var pin = tfa.GetCurrentPIN(key);
 
-            var msig = new Algorand2FAMultisig.Model.Multisig()
-            {
-                Signators = new string[]
-                {
-                    "BSJZLXX34NSWJNCIQQ2DKQF6GFIJXHLIHXJFEKLRECMKRFJL6H6MY4ZJXQ",
-                    "BDICA3QGKI2WCR7PBSKRGDQAJKCHT55RKCX5GBDSOK5WFLI4XLTAALXTMQ",
-                }
-                ,
-                Threshold = 2,
-                Version = 1
-            };
-            MultisigAddress multiAddress = new MultisigAddress(1, 2, new List<byte[]> { new Address("BSJZLXX34NSWJNCIQQ2DKQF6GFIJXHLIHXJFEKLRECMKRFJL6H6MY4ZJXQ").Bytes, new Address("BDICA3QGKI2WCR7PBSKRGDQAJKCHT55RKCX5GBDSOK5WFLI4XLTAALXTMQ").Bytes });
-            
-
             var httpClient = HttpClientConfigurator.ConfigureHttpClient("https://testnet-api.algonode.cloud", "aa");
             DefaultApi algodApiInstance = new DefaultApi(httpClient);
             var transParams = await algodApiInstance.TransactionParamsAsync();
             transParams.LastRound = 1;
-            var address = new Address("BSJZLXX34NSWJNCIQQ2DKQF6GFIJXHLIHXJFEKLRECMKRFJL6H6MY4ZJXQ");
-            var tx1 = PaymentTransaction.GetPaymentTransactionFromNetworkTransactionParameters(multiAddress.ToAddress(), address, 0, "#ARC14", transParams);
+            var address = new Address(primaryAccount);
+            var tx1 = PaymentTransaction.GetPaymentTransactionFromNetworkTransactionParameters(MultiAddress.ToAddress(), address, 0, "#ARC14", transParams);
             var tx1MessagePack = Convert.ToBase64String(Algorand.Utils.Encoder.EncodeToMsgPackOrdered(tx1));
 
             var signRet = _controller.PasswordAccountSign("Password123", tx1MessagePack);
             var signResult = signRet.Result as OkObjectResult;
             Assert.That(signResult, Is.Not.Null);
             var signResultObj = signResult.Value?.ToString();
-            Assert.That(signResultObj, Is.EqualTo("g6RzZ25yxCAMk5Xe++NlZLRIhDQ1QL4xUJudaD3SUilxIJiolSvx/KNzaWfEQLbzdbslI6Y+YQqX6Fnlzu1aroNG1Cvbf2tEiTCGfniRQTM3yP2SAvm+4eWpUecBm7YyMh9rTcJizI86umuHBg6jdHhuiqNhbXQAo2ZlZc0D6KJmdgGjZ2VurHRlc3RuZXQtdjEuMKJnaMQgSGO1GKSzyE7IEPItTxCByw9x8FmnrCDexi9/cOUJOiKibHbNA+mkbm90ZcQGI0FSQzE0o3JjdsQgDJOV3vvjZWS0SIQ0NUC+MVCbnWg90lIpcSCYqJUr8fyjc25kxCDCP9PFlhmbYhVL8kCQqr36kWCS7iMELyXW26vx4OdxG6R0eXBlo3BheQ=="));
+            Assert.That(signResultObj, Is.EqualTo("g6RzZ25yxCAMk5Xe++NlZLRIhDQ1QL4xUJudaD3SUilxIJiolSvx/KNzaWfEQGS8ESdA82KSZMIDTJYvzxFEPvMIVmd+hZW+EHHI1jdgFtNNCDDJMz42p9WdeUsna/DuZDmEoHb5ZnoMmhNzeAGjdHhuiaNmZWXNA+iiZnYBo2dlbqx0ZXN0bmV0LXYxLjCiZ2jEIEhjtRiks8hOyBDyLU8QgcsPcfBZp6wg3sYvf3DlCToiomx2zQPppG5vdGXEBiNBUkMxNKNyY3bEIAyTld7742VktEiENDVAvjFQm51oPdJSKXEgmKiVK/H8o3NuZMQgTETmll1ziO0jDwdneLHlnfPepqZyWittcdJ7mEczp7SkdHlwZaNwYXk="));
 
-            var sign2FARet = _controller.SignValidateTwoFactorPINBase64MsgPackTx(pin, JsonConvert.SerializeObject(msig), signResultObj);
+            var sign2FARet = _controller.SignValidateTwoFactorPINBase64MsgPackTx(pin, JsonConvert.SerializeObject(MsigConfig), signResultObj, secondaryAccount);
             var sign2FAResult = sign2FARet.Result as OkObjectResult;
             Assert.That(sign2FAResult, Is.Not.Null);
             var sign2FAResultObj = sign2FAResult.Value?.ToString();
-            Assert.That(sign2FAResultObj, Is.EqualTo("gqRtc2lng6ZzdWJzaWeSgqJwa8QgDJOV3vvjZWS0SIQ0NUC+MVCbnWg90lIpcSCYqJUr8fyhc8RAtvN1uyUjpj5hCpfoWeXO7Vqug0bUK9t/a0SJMIZ+eJFBMzfI/ZIC+b7h5alR5wGbtjIyH2tNwmLMjzq6a4cGDoKicGvEIAjQIG4GUjVhR+8MlRMOAEqEefexUK/TBHJyu2KtHLrmoXPEQBJtVmgFdg9hAZwR+P4NAmm0DmSH/3VZjmemmxc/S/pLr352npHPpNLUVcZP4cT6QWd2e0UnbcpHZfiHY0EcTwqjdGhyAqF2AaN0eG6Ko2FtdACjZmVlzQPoomZ2AaNnZW6sdGVzdG5ldC12MS4womdoxCBIY7UYpLPITsgQ8i1PEIHLD3HwWaesIN7GL39w5Qk6IqJsds0D6aRub3RlxAYjQVJDMTSjcmN2xCAMk5Xe++NlZLRIhDQ1QL4xUJudaD3SUilxIJiolSvx/KNzbmTEIMI/08WWGZtiFUvyQJCqvfqRYJLuIwQvJdbbq/Hg53EbpHR5cGWjcGF5"));
+            Assert.That(sign2FAResultObj, Is.EqualTo("gqRtc2lng6ZzdWJzaWeTgqJwa8QgDJOV3vvjZWS0SIQ0NUC+MVCbnWg90lIpcSCYqJUr8fyhc8RAZLwRJ0DzYpJkwgNMli/PEUQ+8whWZ36Flb4QccjWN2AW000IMMkzPjan1Z15Sydr8O5kOYSgdvlmegyaE3N4AYGicGvEIDd8ECIjyBJyRU+w0yAoNvfZNAu5Wa2vOstbUThWy6ZYgqJwa8Qgfdx3GEKl4E6Epi9x2iEd+bCB33KaN4LaIKsKBuaEiF6hc8RAfaRTyTvTz8wCBXhlI6x6RoEO0TrZ5ro1219BwHSSeqA56Cjp8piiuTn/8insy27PkgtEY7/71AmuKaFyA2ezCqN0aHICoXYBo3R4bomjZmVlzQPoomZ2AaNnZW6sdGVzdG5ldC12MS4womdoxCBIY7UYpLPITsgQ8i1PEIHLD3HwWaesIN7GL39w5Qk6IqJsds0D6aRub3RlxAYjQVJDMTSjcmN2xCAMk5Xe++NlZLRIhDQ1QL4xUJudaD3SUilxIJiolSvx/KNzbmTEIExE5pZdc4jtIw8HZ3ix5Z3z3qamclorbXHSe5hHM6e0pHR5cGWjcGF5"));
 
         }
 
@@ -125,7 +135,8 @@ namespace Algorand2FAMultisigTests
             var result = ret.Result as OkObjectResult;
             Assert.That(result, Is.Not.Null);
             var resultObj = result.Value?.ToString();
-            Assert.That(resultObj, Is.EqualTo("gqNzaWfEQH3U/ohHq2LOYXD/V41/BgDdw3yu+JknjW9fIR5gewcYsKmudgpXOZhgbb/hJXmeQboh/kbnQyj2x2xv9109XAyjdHhuiqNhbXQAo2ZlZc0D6KJmdgGjZ2VurHRlc3RuZXQtdjEuMKJnaMQgSGO1GKSzyE7IEPItTxCByw9x8FmnrCDexi9/cOUJOiKibHbNA+mkbm90ZcQGI0FSQzE0o3JjdsQgDJOV3vvjZWS0SIQ0NUC+MVCbnWg90lIpcSCYqJUr8fyjc25kxCAMk5Xe++NlZLRIhDQ1QL4xUJudaD3SUilxIJiolSvx/KR0eXBlo3BheQ=="));
+
+            Assert.That(resultObj, Is.EqualTo("gqNzaWfEQJjAdWQPV0Rk5iKFXOT0mIsvdABNMeCD1CqtrJVOML+A3POht7KD7IrxvJswU4rurhC/nCvZA47TvbTyDgHWxwijdHhuiaNmZWXNA+iiZnYBo2dlbqx0ZXN0bmV0LXYxLjCiZ2jEIEhjtRiks8hOyBDyLU8QgcsPcfBZp6wg3sYvf3DlCToiomx2zQPppG5vdGXEBiNBUkMxNKNyY3bEIAyTld7742VktEiENDVAvjFQm51oPdJSKXEgmKiVK/H8o3NuZMQgDJOV3vvjZWS0SIQ0NUC+MVCbnWg90lIpcSCYqJUr8fykdHlwZaNwYXk="));
         }
 
         [Test]
@@ -135,31 +146,22 @@ namespace Algorand2FAMultisigTests
             var result = ret.Result as OkObjectResult;
             Assert.That(result, Is.Not.Null);
             var resultObj = result.Value?.ToString();
-            Assert.That(resultObj, Is.EqualTo("BSJZLXX34NSWJNCIQQ2DKQF6GFIJXHLIHXJFEKLRECMKRFJL6H6MY4ZJXQ"));
-        }
-        [Test]
-        public void GetAddressTest()
-        {
-            var ret = _controller.GetAddress();
-            var result = ret.Result as OkObjectResult;
-            Assert.That(result, Is.Not.Null);
-            var resultObj = result.Value?.ToString();
-            Assert.That(resultObj, Is.EqualTo("BDICA3QGKI2WCR7PBSKRGDQAJKCHT55RKCX5GBDSOK5WFLI4XLTAALXTMQ"));
+            Assert.That(resultObj, Is.EqualTo(primaryAccount));
         }
         [Test]
         public void TestValidateTwoFactorPINTest()
         {
-            var ret = _controller.SetupGoogleAuthenticatorJson("title");
+            var ret = _controller.SetupAuthenticator("title", secondaryAccount);
             var result = ret.Result as OkObjectResult;
             Assert.IsNotNull(result);
             var resultObj = result.Value as Algorand2FAMultisig.Model.SetupReturn;
             Assert.IsNotNull(resultObj);
 
 
-            var key = MultisigController.ComputeSHA256Hash($"BDICA3QGKI2WCR7PBSKRGDQAJKCHT55RKCX5GBDSOK5WFLI4XLTAALXTMQ-{secret}");
+            var key = MultisigController.ComputeSHA256Hash($"{twoFaAccount}-{secret}");
             TwoFactorAuthenticator tfa = new();
             var pin = tfa.GetCurrentPIN(key);
-            var retPinVerify = _controller.TestValidateTwoFactorPIN(pin);
+            var retPinVerify = _controller.TestValidateTwoFactorPIN(pin, secondaryAccount);
             var resultPinVerify = retPinVerify.Result as OkObjectResult;
             Assert.IsNotNull(resultPinVerify);
             var resultObjPinVerify = Convert.ToBoolean(resultPinVerify.Value);
@@ -169,7 +171,7 @@ namespace Algorand2FAMultisigTests
         [Test]
         public void TestValidateTwoFactorWrongPINTest()
         {
-            var ret = _controller.SetupGoogleAuthenticatorJson("title");
+            var ret = _controller.SetupAuthenticator("title", secondaryAccount);
             var result = ret.Result as OkObjectResult;
             Assert.IsNotNull(result);
             var resultObj = result.Value as Algorand2FAMultisig.Model.SetupReturn;
@@ -181,7 +183,7 @@ namespace Algorand2FAMultisigTests
             var pin = tfa.GetCurrentPIN(key);
             var num = Convert.ToUInt64(pin);
             var wrongPin = (++num).ToString();
-            var retPinVerify = _controller.TestValidateTwoFactorPIN(wrongPin);
+            var retPinVerify = _controller.TestValidateTwoFactorPIN(wrongPin, secondaryAccount);
             var resultPinVerify = retPinVerify.Result as OkObjectResult;
             Assert.IsNotNull(resultPinVerify);
             var resultObjPinVerify = Convert.ToBoolean(resultPinVerify.Value);

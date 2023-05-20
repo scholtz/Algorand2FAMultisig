@@ -16,8 +16,12 @@
             <param name="logger"></param>
             <param name="configuration"></param>
             <param name="authenticatorApp"></param>
-            <param name="authUser">For testing purposes</param>
             <exception cref="T:System.Exception"></exception>
+        </member>
+        <member name="M:Algorand2FAMultisig.Controllers.MultisigController.SetAuthUser(System.String)">
+            <summary>
+            For testing purposes only
+            </summary>
         </member>
         <member name="M:Algorand2FAMultisig.Controllers.MultisigController.ComputeSHA256Hash(System.String)">
             <summary>
@@ -26,11 +30,25 @@
             <param name="text"></param>
             <returns></returns>
         </member>
+        <member name="M:Algorand2FAMultisig.Controllers.MultisigController.UniformTxtCode(System.String)">
+            <summary>
+            Unifies the code.. Trim and remove -.
+            </summary>
+            <param name="txtCode"></param>
+            <returns></returns>
+        </member>
         <member name="M:Algorand2FAMultisig.Controllers.MultisigController.ComputeSHA256HashBytes(System.String)">
             <summary>
             SHA256
             </summary>
             <param name="text"></param>
+            <returns></returns>
+        </member>
+        <member name="M:Algorand2FAMultisig.Controllers.MultisigController.CreateSeed(System.String)">
+            <summary>
+            Create seed for authenticated user and sedondary account with configuration password
+            </summary>
+            <param name="secondaryAccount"></param>
             <returns></returns>
         </member>
         <member name="M:Algorand2FAMultisig.Controllers.MultisigController.GetMasterPasswordHash">
@@ -57,7 +75,7 @@
             </summary>
             <returns></returns>
         </member>
-        <member name="M:Algorand2FAMultisig.Controllers.MultisigController.GetAddress">
+        <member name="M:Algorand2FAMultisig.Controllers.MultisigController.GetAddress(System.String)">
             <summary>
             Shows the configured account for this 2FA system
             </summary>
@@ -69,37 +87,38 @@
             </summary>
             <returns></returns>
         </member>
-        <member name="M:Algorand2FAMultisig.Controllers.MultisigController.SetupGoogleAuthenticator(System.String)">
-            <summary>
-            Ask for QR code. Returns image with additional information in headers.
-            
-            In X-2FA header is setup object
-            in X-Address header is the configured address
-            </summary>
-            <param name="accountTitleNoSpaces">The user account or source system. It is shown in the Authenticator app</param>
-            <returns></returns>
-        </member>
-        <member name="M:Algorand2FAMultisig.Controllers.MultisigController.SetupGoogleAuthenticatorJson(System.String)">
+        <member name="M:Algorand2FAMultisig.Controllers.MultisigController.SetupAuthenticator(System.String,System.String)">
             <summary>
             Ask for QR code
             </summary>
             <param name="accountTitleNoSpaces">The user account or source system. It is shown in the Authenticator app</param>
+            <param name="secondaryAccount">Recovery account</param>
             <returns>Model.SetupReturn</returns>
         </member>
-        <member name="M:Algorand2FAMultisig.Controllers.MultisigController.TestValidateTwoFactorPIN(System.String)">
+        <member name="M:Algorand2FAMultisig.Controllers.MultisigController.ConfirmSetupAuthenticator(System.String,System.String)">
             <summary>
             Test 2FA auth
             </summary>
-            <param name="txtCode"></param>
+            <param name="txtCode">Code from authenticator app</param>
+            <param name="secondaryAccount">Recovery account</param>
+            <returns>Returns the address to be added to multisig</returns>
+        </member>
+        <member name="M:Algorand2FAMultisig.Controllers.MultisigController.TestValidateTwoFactorPIN(System.String,System.String)">
+            <summary>
+            Test 2FA auth
+            </summary>
+            <param name="txtCode">Code from authenticator app</param>
+            <param name="secondaryAccount">Recovery account</param>
             <returns></returns>
         </member>
-        <member name="M:Algorand2FAMultisig.Controllers.MultisigController.SignValidateTwoFactorPINBase64MsgPackTx(System.String,System.String,System.String)">
+        <member name="M:Algorand2FAMultisig.Controllers.MultisigController.SignValidateTwoFactorPINBase64MsgPackTx(System.String,System.String,System.String,System.String)">
             <summary>
             Do multisig signing with msg pack object from base64 and return SignedTransaction json object in msgpack base64 with signature
             </summary>
             <param name="txtCode">PIN from authenticator app</param>
             <param name="msigConfigBase64">msigConfig in base64</param>
             <param name="signedTxMsgPack">signed Tx in msg pack</param>
+            <param name="secondaryAccount">Recovery account</param>
             <returns></returns>
         </member>
         <member name="T:Algorand2FAMultisig.Model.Multisig">
