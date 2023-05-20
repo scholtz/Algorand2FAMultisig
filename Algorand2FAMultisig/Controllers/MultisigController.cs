@@ -51,6 +51,10 @@ namespace Algorand2FAMultisig.Controllers
             using var sha256 = SHA256.Create();
             return BitConverter.ToString(sha256.ComputeHash(Encoding.UTF8.GetBytes(text))).Replace("-", "").ToLower();
         }
+        public static string UniformTxtCode(string txtCode)
+        {
+            return txtCode.Trim().Replace("-", "");
+        }
         /// <summary>
         /// SHA256
         /// </summary>
@@ -281,7 +285,7 @@ namespace Algorand2FAMultisig.Controllers
                 var account = new Algorand.Algod.Model.Account(seed);
                 var key = ComputeSHA256Hash($"{account.Address}-{configuration["Algo:Mnemonic"]}");
 
-                bool result = authenticatorApp.ValidateTwoFactorPIN(key, txtCode);
+                bool result = authenticatorApp.ValidateTwoFactorPIN(key, UniformTxtCode(txtCode));
 
                 // TODO .. save secondaryAccount
 
@@ -311,7 +315,7 @@ namespace Algorand2FAMultisig.Controllers
                 var account = new Algorand.Algod.Model.Account(seed);
                 var key = ComputeSHA256Hash($"{account.Address}-{configuration["Algo:Mnemonic"]}");
 
-                bool result = authenticatorApp.ValidateTwoFactorPIN(key, txtCode);
+                bool result = authenticatorApp.ValidateTwoFactorPIN(key, UniformTxtCode(txtCode));
 
                 return Ok(result);
             }
@@ -368,7 +372,7 @@ namespace Algorand2FAMultisig.Controllers
                 var account = new Algorand.Algod.Model.Account(seed);
                 var key = ComputeSHA256Hash($"{account.Address}-{configuration["Algo:Mnemonic"]}");
 
-                bool result = authenticatorApp.ValidateTwoFactorPIN(key, txtCode);
+                bool result = authenticatorApp.ValidateTwoFactorPIN(key, UniformTxtCode(txtCode));
                 if (!result) throw new Exception("Invalid PIN");
                 var msig = new MultisigAddress(msigConfig.Version, msigConfig.Threshold, new List<Ed25519PublicKeyParameters>(msigConfig.Signators.Select(a =>
                 {
