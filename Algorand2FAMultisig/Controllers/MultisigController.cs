@@ -43,6 +43,7 @@ namespace Algorand2FAMultisig.Controllers
         /// <summary>
         /// For testing purposes only
         /// </summary>
+        [NonAction]
         public void SetAuthUser(string AuthUser)
         {
             this.AuthUser = AuthUser;
@@ -52,6 +53,7 @@ namespace Algorand2FAMultisig.Controllers
         /// </summary>
         /// <param name="text"></param>
         /// <returns></returns>
+        [NonAction]
         public static string ComputeSHA256Hash(string text)
         {
             using var sha256 = SHA256.Create();
@@ -62,6 +64,7 @@ namespace Algorand2FAMultisig.Controllers
         /// </summary>
         /// <param name="txtCode"></param>
         /// <returns></returns>
+        [NonAction]
         public static string UniformTxtCode(string txtCode)
         {
             return txtCode.Trim().Replace("-", "");
@@ -71,6 +74,7 @@ namespace Algorand2FAMultisig.Controllers
         /// </summary>
         /// <param name="text"></param>
         /// <returns></returns>
+        [NonAction]
         public static byte[] ComputeSHA256HashBytes(string text)
         {
             using var sha256 = SHA256.Create();
@@ -81,6 +85,7 @@ namespace Algorand2FAMultisig.Controllers
         /// </summary>
         /// <param name="secondaryAccount"></param>
         /// <returns></returns>
+        [NonAction]
         private byte[] CreateSeed(string secondaryAccount)
         {
             return ComputeSHA256HashBytes($"{AuthUser}-{configuration["Algo:Mnemonic"]}-{secondaryAccount}");
