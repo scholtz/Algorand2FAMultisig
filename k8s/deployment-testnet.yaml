@@ -6,22 +6,22 @@ metadata:
 apiVersion: apps/v1 
 kind: Deployment
 metadata:
-  name: algo2fa-web-main-deployment
+  name: algo2fa-web-testnet-deployment
   namespace: algo2fa
 spec:
   selector:
     matchLabels:
-      app: algo2fa-web-main
+      app: algo2fa-web-testnet
   replicas: 3
   template:
     metadata:
       labels:
-        app: algo2fa-web-main
+        app: algo2fa-web-testnet
     spec:
       imagePullSecrets:
       - name: regcred
       containers:
-        - name: algo2fa-web-main
+        - name: algo2fa-web-testnet
           image: scholtz2/algorand-2fa-multisig:1.2023.05.21-beta
           imagePullPolicy: Always
           ports: 
@@ -41,13 +41,13 @@ spec:
             failureThreshold: 2
             terminationGracePeriodSeconds: 1
           volumeMounts:
-            - name: algo2fa-main-conf
+            - name: algo2fa-testnet-conf
               mountPath: /app/appsettings.json
               subPath: appsettings.json
       volumes:
-        - name: algo2fa-main-conf
+        - name: algo2fa-testnet-conf
           configMap:
-            name: algo2fa-main-conf
+            name: algo2fa-testnet-conf
 ---
 
 apiVersion: v1
@@ -58,7 +58,7 @@ metadata:
 spec:
   type: ClusterIP
   selector:
-    app: algo2fa-web-main
+    app: algo2fa-web-testnet
   ports:
     - name: http
       protocol: TCP
@@ -70,7 +70,7 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: algo2fa-ingress-main
+  name: ingress-2famsig-testnet.k8s.aramid.finance
   namespace: algo2fa
   annotations: 
     kubernetes.io/ingress.class: "nginx"
@@ -80,10 +80,10 @@ metadata:
 spec:
   tls:
   - hosts:
-    - 2famsig.k8s.aramid.finance
-    secretName: tls-2famsig.k8s.aramid.finance
+    - 2famsig-testnet.k8s.aramid.finance
+    secretName: tls-2famsig-testnet.k8s.aramid.finance
   rules:
-  - host: 2famsig.k8s.aramid.finance
+  - host: 2famsig-testnet.k8s.aramid.finance
     http:
       paths:
       - path: /(.*)
