@@ -3,9 +3,9 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.4.33213.308
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Algorand2FAMultisig", "Algorand2FAMultisig\Algorand2FAMultisig.csproj", "{F0A21DCC-4325-460F-9F8E-C246BCEADF16}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Algorand2FAMultisig", "Algorand2FAMultisig\Algorand2FAMultisig.csproj", "{F0A21DCC-4325-460F-9F8E-C246BCEADF16}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Algorand2FAMultisigTests", "Algorand2FAMultisigTests\Algorand2FAMultisigTests.csproj", "{E81F3AE7-DE49-4B2C-809F-A95AC8D771C2}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Algorand2FAMultisigTests", "Algorand2FAMultisigTests\Algorand2FAMultisigTests.csproj", "{E81F3AE7-DE49-4B2C-809F-A95AC8D771C2}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

@@ -23,6 +23,11 @@
             For testing purposes only
             </summary>
         </member>
+        <member name="M:Algorand2FAMultisig.Controllers.MultisigController.GetAuthUser">
+            <summary>
+            For testing purposes only
+            </summary>
+        </member>
         <member name="M:Algorand2FAMultisig.Controllers.MultisigController.ComputeSHA256Hash(System.String)">
             <summary>
             SHA256

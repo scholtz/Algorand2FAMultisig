@@ -1,4 +1,5 @@
 using AlgorandAuthentication;
+using Microsoft.Extensions.Configuration;
 using Microsoft.OpenApi.Models;
 
 namespace Algorand2FAMultisig
@@ -42,16 +43,23 @@ namespace Algorand2FAMultisig
                 c.IncludeXmlComments(Path.Combine(AppContext.BaseDirectory, $"doc/doc.xml"));
             });
 
+            var algorandAuthenticationOptions = new AlgorandAuthenticationOptions();
+            builder.Configuration.GetSection("AlgorandAuthentication").Bind(algorandAuthenticationOptions);
+
             builder.Services
              .AddAuthentication(AlgorandAuthenticationHandler.ID)
              .AddAlgorand(o =>
              {
-                 o.CheckExpiration = true;
-                 o.AlgodServer = builder.Configuration["algod:server"];
-                 o.AlgodServerToken = builder.Configuration["algod:token"];
-                 o.AlgodServerHeader = builder.Configuration["algod:header"];
-                 o.Realm = builder.Configuration["algod:realm"];
-                 o.NetworkGenesisHash = builder.Configuration["algod:networkGenesisHash"];
+                 o.CheckExpiration = algorandAuthenticationOptions.CheckExpiration;
+                 o.Debug = algorandAuthenticationOptions.Debug;
+                 o.AlgodServer = algorandAuthenticationOptions.AlgodServer;
+                 o.AlgodServerToken = algorandAuthenticationOptions.AlgodServerToken;
+                 o.AlgodServerHeader = algorandAuthenticationOptions.AlgodServerHeader;
+                 o.Realm = algorandAuthenticationOptions.Realm;
+                 o.NetworkGenesisHash = algorandAuthenticationOptions.NetworkGenesisHash;
+                 o.MsPerBlock = algorandAuthenticationOptions.MsPerBlock;
+                 o.EmptySuccessOnFailure = algorandAuthenticationOptions.EmptySuccessOnFailure;
+                 o.EmptySuccessOnFailure = algorandAuthenticationOptions.EmptySuccessOnFailure;
              });
 
             builder.Services.AddSingleton(typeof(Repository.Interface.IAuthenticatorApp), typeof(Repository.Implementation.GoogleAuthenticatorApp));

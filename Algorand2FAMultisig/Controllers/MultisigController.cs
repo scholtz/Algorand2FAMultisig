@@ -22,7 +22,7 @@ namespace Algorand2FAMultisig.Controllers
         private readonly ILogger<MultisigController> logger;
         private readonly IConfiguration configuration;
         private readonly IAuthenticatorApp authenticatorApp;
-        private string AuthUser;
+        private string AuthUser = "";
         /// <summary>
         /// Constructor
         /// </summary>
@@ -35,7 +35,6 @@ namespace Algorand2FAMultisig.Controllers
             this.logger = logger;
             this.configuration = configuration;
             this.authenticatorApp = authenticatorApp;
-            this.AuthUser = User?.Identity?.Name ?? "";
 
             if (string.IsNullOrEmpty(configuration["Algo:Mnemonic"])) throw new Exception("Please configure Algo:Mnemonic in secrets");
             // _ = new Algorand.Algod.Model.Account(configuration["Algo:Mnemonic"]); // in Algo:Mnemonic is stored key for generating accounts
@@ -48,6 +47,16 @@ namespace Algorand2FAMultisig.Controllers
         {
             this.AuthUser = AuthUser;
         }
+
+        /// <summary>
+        /// For testing purposes only
+        /// </summary>
+        [NonAction]
+        public string GetAuthUser()
+        {
+            return User?.Identity?.Name ?? AuthUser;
+        }
+
         /// <summary>
         /// SHA256
         /// </summary>
@@ -88,7 +97,7 @@ namespace Algorand2FAMultisig.Controllers
         [NonAction]
         private byte[] CreateSeed(string secondaryAccount)
         {
-            return ComputeSHA256HashBytes($"{AuthUser}-{configuration["Algo:Mnemonic"]}-{secondaryAccount}");
+            return ComputeSHA256HashBytes($"{GetAuthUser()}-{configuration["Algo:Mnemonic"]}-{secondaryAccount}");
         }
         /// <summary>
         /// Shows the configured account for this 2FA system
@@ -117,7 +126,7 @@ namespace Algorand2FAMultisig.Controllers
         {
             try
             {
-                logger?.LogInformation($"{AuthUser}:GetRealm");
+                logger?.LogInformation($"{GetAuthUser()}:GetRealm");
                 return Ok($"{configuration["algod:realm"]}");
             }
             catch (Exception exc)
@@ -192,7 +201,7 @@ namespace Algorand2FAMultisig.Controllers
         {
             try
             {
-                logger?.LogInformation($"{AuthUser}:GetAddress");
+                logger?.LogInformation($"{GetAuthUser()}:GetAddress");
                 var seed = CreateSeed(secondaryAccount);
                 var account = new Algorand.Algod.Model.Account(seed);
                 return Ok(account.Address.EncodeAsString());
@@ -213,8 +222,8 @@ namespace Algorand2FAMultisig.Controllers
         {
             try
             {
-                logger?.LogInformation($"{AuthUser}:MyAddress");
-                return Ok(AuthUser);
+                logger?.LogInformation($"{GetAuthUser()}:MyAddress");
+                return Ok(GetAuthUser());
             }
             catch (Exception exc)
             {
@@ -234,12 +243,12 @@ namespace Algorand2FAMultisig.Controllers
         {
             try
             {
-                logger?.LogInformation($"{AuthUser}:SetupAuthenticator");
+                logger?.LogInformation($"{GetAuthUser()}:SetupAuthenticator");
 
                 // TODO check from the DB if secondary account has been setup for this account already (it is stored at ConfirmSetupAuthenticator method)
                 // if secondary account exists, deny this request
 
-                logger?.LogError($"{AuthUser}:SetupAuthenticator TODO check from the DB if secondary account {secondaryAccount}");
+                logger?.LogError($"{GetAuthUser()}:SetupAuthenticator TODO check from the DB if secondary account {secondaryAccount}");
 
                 var seed = CreateSeed(secondaryAccount);
                 var account = new Algorand.Algod.Model.Account(seed);
@@ -270,7 +279,7 @@ namespace Algorand2FAMultisig.Controllers
                 // TODO check from the DB if secondary account has been setup for this account already
                 // if secondary account exists, deny this request
 
-                logger?.LogInformation($"{AuthUser}:TestValidateTwoFactorPIN");
+                logger?.LogInformation($"{GetAuthUser()}:TestValidateTwoFactorPIN");
 
                 var seed = CreateSeed(secondaryAccount);
                 var account = new Algorand.Algod.Model.Account(seed);
@@ -301,7 +310,7 @@ namespace Algorand2FAMultisig.Controllers
         {
             try
             {
-                logger?.LogInformation($"{AuthUser}:TestValidateTwoFactorPIN");
+                logger?.LogInformation($"{GetAuthUser()}:TestValidateTwoFactorPIN");
 
                 var seed = CreateSeed(secondaryAccount);
                 var account = new Algorand.Algod.Model.Account(seed);
@@ -332,7 +341,7 @@ namespace Algorand2FAMultisig.Controllers
         {
             try
             {
-                logger?.LogInformation($"{AuthUser}:SignValidateTwoFactorPINBase64MessagePackTx");
+                logger?.LogInformation($"{GetAuthUser()}:SignValidateTwoFactorPINBase64MessagePackTx");
 
                 if (string.IsNullOrEmpty(txtCode))
                 {
