@@ -22,7 +22,7 @@ spec:
       - name: regcred
       containers:
         - name: algo2fa-web-main
-          image: scholtz2/algorand-2fa-multisig:1.2023.05.21-beta
+          image: scholtz2/algorand-2fa-multisig:1.2023.05.22-beta
           imagePullPolicy: Always
           ports: 
             - containerPort: 80
