@@ -336,12 +336,12 @@ namespace Algorand2FAMultisig.Controllers
         /// <param name="secondaryAccount">Recovery account</param>
         /// <returns></returns>
         [Authorize]
-        [HttpPost("SignValidateTwoFactorPINBase64MsgPackTx")]
-        public ActionResult<string> SignValidateTwoFactorPINBase64MsgPackTx([FromForm] string txtCode, [FromForm] string msigConfigBase64, [FromForm] string signedTxMsgPack, [FromForm] string secondaryAccount)
+        [HttpPost("SignWithTwoFactorPINMsigTx")]
+        public ActionResult<string> SignWithTwoFactorPINMsigTx([FromForm] string txtCode, [FromForm] string msigConfigBase64, [FromForm] string signedTxMsgPack, [FromForm] string secondaryAccount)
         {
             try
             {
-                logger?.LogInformation($"{GetAuthUser()}:SignValidateTwoFactorPINBase64MessagePackTx");
+                logger?.LogInformation($"{GetAuthUser()}:SignWithTwoFactorPINMsigTx");
 
                 if (string.IsNullOrEmpty(txtCode))
                 {
