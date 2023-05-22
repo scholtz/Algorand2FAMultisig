@@ -53,7 +53,7 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: algo2fa-service
+  name: algo2fa-service-testnet
   namespace: algo2fa
 spec:
   type: ClusterIP
@@ -90,6 +90,6 @@ spec:
         pathType: Prefix
         backend:
           service:
-            name: algo2fa-service
+            name: algo2fa-service-testnet
             port:
               number: 80
