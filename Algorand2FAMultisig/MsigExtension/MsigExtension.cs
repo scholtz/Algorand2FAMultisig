@@ -10,6 +10,28 @@ namespace Algorand2FAMultisig.MsigExtension
     {
         #region Multisignature support
         /// <summary>
+        /// CreateUnsignedMultisigTransaction creates a multisig transaction from the input tx and the multisig account.
+        /// </summary>
+        /// <param name="from">sign as this multisignature account</param>
+        /// <param name="tx">the transaction to sign</param>
+        /// <returns>SignedTransaction a partially signed multisig transaction</returns>
+        public static SignedTransaction CreateUnsignedMultisigTransaction(this MultisigAddress from, Transaction tx) //throws NoSuchAlgorithmException
+        {
+            // check that from addr of tx matches multisig preimage
+            if (!tx.Sender.ToString().Equals(from.ToString()))
+            {
+                throw new ArgumentException("Transaction sender does not match multisig account");
+            }
+
+            // now, create the multisignature
+            MultisigSignature mSig = new(from.version, from.threshold);
+            for (int i = 0; i < from.publicKeys.Count; i++)
+            {
+                mSig.Subsigs.Add(new MultisigSubsig(from.publicKeys[i]));
+            }
+            return new SignedTransaction(tx, null, mSig, null, null);
+        }
+        /// <summary>
         /// SignMultisigTransaction creates a multisig transaction from the input and the multisig account.
         /// </summary>
         /// <param name="account">Account to sign it with</param>
@@ -106,15 +128,16 @@ namespace Algorand2FAMultisig.MsigExtension
                     else
                     {
                         // check if we should merge non msig signature
-                        
-                        if(tx.AuthAddr != null) {
+
+                        if (tx.AuthAddr != null)
+                        {
                             // fill in if we have information on who signed the tx
                             if (merged.MSig.Subsigs[j].key.GetEncoded().SequenceEqual(tx.AuthAddr.Bytes))
                             {
                                 merged.MSig.Subsigs[j].sig = tx.Sig;
                             }
                         }
-                        
+
                     }
                 }
             }

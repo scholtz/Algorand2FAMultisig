@@ -16,6 +16,8 @@ using System.Security.Claims;
 using Google.Authenticator;
 using Newtonsoft.Json;
 using Algorand.Utils;
+using Algorand2FAMultisig.MsigExtension;
+using Microsoft.AspNetCore.Identity;
 
 namespace Algorand2FAMultisigTests
 {
@@ -93,18 +95,18 @@ namespace Algorand2FAMultisigTests
             transParams.LastRound = 1;
             var address = new Address(primaryAccount);
             var tx1 = PaymentTransaction.GetPaymentTransactionFromNetworkTransactionParameters(MultiAddress.ToAddress(), address, 0, "#ARC14", transParams);
-            var tx1MessagePack = Convert.ToBase64String(Algorand.Utils.Encoder.EncodeToMsgPackOrdered(tx1));
-
-            var signRet = _controller.PasswordAccountSign("Password123", tx1MessagePack);
+            var msigTx = MultiAddress.CreateUnsignedMultisigTransaction(tx1);
+            var tx1MessagePack = Algorand.Utils.Encoder.EncodeToMsgPackOrdered(msigTx);
+            var signRet = _controller.PasswordAccountSignMsig("Password123", tx1MessagePack);
             var signResult = signRet.Result as OkObjectResult;
             Assert.That(signResult, Is.Not.Null);
-            var signResultObj = signResult.Value?.ToString();
-            Assert.That(signResultObj, Is.EqualTo("g6RzZ25yxCAMk5Xe++NlZLRIhDQ1QL4xUJudaD3SUilxIJiolSvx/KNzaWfEQGS8ESdA82KSZMIDTJYvzxFEPvMIVmd+hZW+EHHI1jdgFtNNCDDJMz42p9WdeUsna/DuZDmEoHb5ZnoMmhNzeAGjdHhuiaNmZWXNA+iiZnYBo2dlbqx0ZXN0bmV0LXYxLjCiZ2jEIEhjtRiks8hOyBDyLU8QgcsPcfBZp6wg3sYvf3DlCToiomx2zQPppG5vdGXEBiNBUkMxNKNyY3bEIAyTld7742VktEiENDVAvjFQm51oPdJSKXEgmKiVK/H8o3NuZMQgTETmll1ziO0jDwdneLHlnfPepqZyWittcdJ7mEczp7SkdHlwZaNwYXk="));
+            var signResultObj = Convert.ToBase64String(signResult.Value as byte[]);
+            Assert.That(signResultObj, Is.EqualTo("gqRtc2lng6ZzdWJzaWeTgqJwa8QgDJOV3vvjZWS0SIQ0NUC+MVCbnWg90lIpcSCYqJUr8fyhc8RAZLwRJ0DzYpJkwgNMli/PEUQ+8whWZ36Flb4QccjWN2AW000IMMkzPjan1Z15Sydr8O5kOYSgdvlmegyaE3N4AYGicGvEIDd8ECIjyBJyRU+w0yAoNvfZNAu5Wa2vOstbUThWy6ZYgaJwa8Qgfdx3GEKl4E6Epi9x2iEd+bCB33KaN4LaIKsKBuaEiF6jdGhyAqF2AaN0eG6Jo2ZlZc0D6KJmdgGjZ2VurHRlc3RuZXQtdjEuMKJnaMQgSGO1GKSzyE7IEPItTxCByw9x8FmnrCDexi9/cOUJOiKibHbNA+mkbm90ZcQGI0FSQzE0o3JjdsQgDJOV3vvjZWS0SIQ0NUC+MVCbnWg90lIpcSCYqJUr8fyjc25kxCBMROaWXXOI7SMPB2d4seWd896mpnJaK21x0nuYRzOntKR0eXBlo3BheQ=="));
 
-            var sign2FARet = _controller.SignValidateTwoFactorPINBase64MsgPackTx(pin, JsonConvert.SerializeObject(MsigConfig), signResultObj, secondaryAccount);
+            var sign2FARet = _controller.SignWithTwoFactorPINMsigTx(pin, Convert.FromBase64String(signResultObj), secondaryAccount);
             var sign2FAResult = sign2FARet.Result as OkObjectResult;
             Assert.That(sign2FAResult, Is.Not.Null);
-            var sign2FAResultObj = sign2FAResult.Value?.ToString();
+            var sign2FAResultObj = Convert.ToBase64String(sign2FAResult.Value as byte[]);
             Assert.That(sign2FAResultObj, Is.EqualTo("gqRtc2lng6ZzdWJzaWeTgqJwa8QgDJOV3vvjZWS0SIQ0NUC+MVCbnWg90lIpcSCYqJUr8fyhc8RAZLwRJ0DzYpJkwgNMli/PEUQ+8whWZ36Flb4QccjWN2AW000IMMkzPjan1Z15Sydr8O5kOYSgdvlmegyaE3N4AYGicGvEIDd8ECIjyBJyRU+w0yAoNvfZNAu5Wa2vOstbUThWy6ZYgqJwa8Qgfdx3GEKl4E6Epi9x2iEd+bCB33KaN4LaIKsKBuaEiF6hc8RAfaRTyTvTz8wCBXhlI6x6RoEO0TrZ5ro1219BwHSSeqA56Cjp8piiuTn/8insy27PkgtEY7/71AmuKaFyA2ezCqN0aHICoXYBo3R4bomjZmVlzQPoomZ2AaNnZW6sdGVzdG5ldC12MS4womdoxCBIY7UYpLPITsgQ8i1PEIHLD3HwWaesIN7GL39w5Qk6IqJsds0D6aRub3RlxAYjQVJDMTSjcmN2xCAMk5Xe++NlZLRIhDQ1QL4xUJudaD3SUilxIJiolSvx/KNzbmTEIExE5pZdc4jtIw8HZ3ix5Z3z3qamclorbXHSe5hHM6e0pHR5cGWjcGF5"));
 
         }
@@ -129,12 +131,12 @@ namespace Algorand2FAMultisigTests
 
             var address = new Address("BSJZLXX34NSWJNCIQQ2DKQF6GFIJXHLIHXJFEKLRECMKRFJL6H6MY4ZJXQ");
             var tx1 = PaymentTransaction.GetPaymentTransactionFromNetworkTransactionParameters(address, address, 0, "#ARC14", transParams);
-            var tx1MessagePack = Convert.ToBase64String(Algorand.Utils.Encoder.EncodeToMsgPackOrdered(tx1));
+            var tx1MessagePack = Algorand.Utils.Encoder.EncodeToMsgPackOrdered(tx1);
 
             var ret = _controller.PasswordAccountSign("Password123", tx1MessagePack);
             var result = ret.Result as OkObjectResult;
             Assert.That(result, Is.Not.Null);
-            var resultObj = result.Value?.ToString();
+            var resultObj = Convert.ToBase64String(result.Value as byte[]);
 
             Assert.That(resultObj, Is.EqualTo("gqNzaWfEQJjAdWQPV0Rk5iKFXOT0mIsvdABNMeCD1CqtrJVOML+A3POht7KD7IrxvJswU4rurhC/nCvZA47TvbTyDgHWxwijdHhuiaNmZWXNA+iiZnYBo2dlbqx0ZXN0bmV0LXYxLjCiZ2jEIEhjtRiks8hOyBDyLU8QgcsPcfBZp6wg3sYvf3DlCToiomx2zQPppG5vdGXEBiNBUkMxNKNyY3bEIAyTld7742VktEiENDVAvjFQm51oPdJSKXEgmKiVK/H8o3NuZMQgDJOV3vvjZWS0SIQ0NUC+MVCbnWg90lIpcSCYqJUr8fykdHlwZaNwYXk="));
         }

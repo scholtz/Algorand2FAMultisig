@@ -74,7 +74,13 @@
             </summary>
             <returns></returns>
         </member>
-        <member name="M:Algorand2FAMultisig.Controllers.MultisigController.PasswordAccountSign(System.String,System.String)">
+        <member name="M:Algorand2FAMultisig.Controllers.MultisigController.PasswordAccountSign(System.String,System.Byte[])">
+            <summary>
+            Shows the configured account for this 2FA system
+            </summary>
+            <returns></returns>
+        </member>
+        <member name="M:Algorand2FAMultisig.Controllers.MultisigController.PasswordAccountSignMsig(System.String,System.Byte[])">
             <summary>
             Shows the configured account for this 2FA system
             </summary>
@@ -116,12 +122,11 @@
             <param name="secondaryAccount">Recovery account</param>
             <returns></returns>
         </member>
-        <member name="M:Algorand2FAMultisig.Controllers.MultisigController.SignValidateTwoFactorPINBase64MsgPackTx(System.String,System.String,System.String,System.String)">
+        <member name="M:Algorand2FAMultisig.Controllers.MultisigController.SignWithTwoFactorPINMsigTx(System.String,System.Byte[],System.String)">
             <summary>
             Do multisig signing with msg pack object from base64 and return SignedTransaction json object in msgpack base64 with signature
             </summary>
             <param name="txtCode">PIN from authenticator app</param>
-            <param name="msigConfigBase64">msigConfig in base64</param>
             <param name="signedTxMsgPack">signed Tx in msg pack</param>
             <param name="secondaryAccount">Recovery account</param>
             <returns></returns>
@@ -175,6 +180,14 @@
             <summary>
             MsigExtension
             </summary>
+        </member>
+        <member name="M:Algorand2FAMultisig.MsigExtension.MsigExtension.CreateUnsignedMultisigTransaction(Algorand.MultisigAddress,Algorand.Algod.Model.Transactions.Transaction)">
+            <summary>
+            CreateUnsignedMultisigTransaction creates a multisig transaction from the input tx and the multisig account.
+            </summary>
+            <param name="from">sign as this multisignature account</param>
+            <param name="tx">the transaction to sign</param>
+            <returns>SignedTransaction a partially signed multisig transaction</returns>
         </member>
         <member name="M:Algorand2FAMultisig.MsigExtension.MsigExtension.SignMultisigTransaction(Algorand.Algod.Model.Account,Algorand.MultisigAddress,Algorand.Algod.Model.Transactions.Transaction)">
             <summary>

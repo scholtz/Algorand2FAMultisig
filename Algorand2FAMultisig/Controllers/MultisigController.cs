@@ -164,25 +164,55 @@ namespace Algorand2FAMultisig.Controllers
         /// </summary>
         /// <returns></returns>
         [HttpPost("PasswordAccountSign")]
-        public ActionResult<string> PasswordAccountSign([FromForm] string password, [FromForm] string unsignedTxMsgPack)
+        public ActionResult<byte[]> PasswordAccountSign([FromForm] string password, [FromForm] byte[] unsignedTxMsgPack)
         {
             try
             {
                 if (password.Length < 10) throw new Exception("Password must be at least 10 char long");
-
-
-                var signedTxBytes = Convert.FromBase64String(unsignedTxMsgPack);
-                if (signedTxBytes == null) throw new Exception("Error in signedTx");
-                var tx = Algorand.Utils.Encoder.DecodeFromMsgPack<Transaction>(signedTxBytes);
+                if (unsignedTxMsgPack == null) throw new Exception("Error in signedTx");
+                var tx = Algorand.Utils.Encoder.DecodeFromMsgPack<Transaction>(unsignedTxMsgPack);
 
                 var seed = ComputeSHA256HashBytes($"{password}");
                 var account = new Algorand.Algod.Model.Account(seed);
                 var address = account.Address.EncodeAsString();
-                logger?.LogError($"PasswordAccountSign:{address}");
+                logger?.LogInformation($"PasswordAccountSign:{address}");
 
                 var signed = tx.Sign(account);
                 var messagePack = Algorand.Utils.Encoder.EncodeToMsgPackOrdered(signed);
-                return Ok(Convert.ToBase64String(messagePack));
+                return Ok(messagePack);
+            }
+            catch (Exception exc)
+            {
+                logger?.LogError(exc.Message);
+                return BadRequest(new ProblemDetails() { Detail = exc.Message });
+            }
+        }
+
+        /// <summary>
+        /// Shows the configured account for this 2FA system
+        /// </summary>
+        /// <returns></returns>
+        [HttpPost("PasswordAccountSignMsig")]
+        public ActionResult<byte[]> PasswordAccountSignMsig([FromForm] string password, [FromForm] byte[] signedTxMsgPack)
+        {
+            try
+            {
+                if (password.Length < 10) throw new Exception("Password must be at least 10 char long");
+                var signedTxObj = Algorand.Utils.Encoder.DecodeFromMsgPack<SignedTransaction>(signedTxMsgPack);
+                if (signedTxObj == null) throw new Exception("Error in signedTxBytes");
+                if (signedTxObj.MSig == null) throw new Exception("signedTxMsgPack is not multisig transaction.");
+
+
+                var seed = ComputeSHA256HashBytes($"{password}");
+                var account = new Algorand.Algod.Model.Account(seed);
+                var address = account.Address.EncodeAsString();
+                logger?.LogInformation($"PasswordAccountSignMsig:{address}");
+
+                var msig = new MultisigAddress(signedTxObj.MSig.Version, signedTxObj.MSig.Threshold, new List<Ed25519PublicKeyParameters>(signedTxObj.MSig.Subsigs.Select(s => s.key)));
+                var signed = signedTxObj.Tx.Sign(msig, account);
+
+                var messagePack = Algorand.Utils.Encoder.EncodeToMsgPackOrdered(signed);
+                return Ok(messagePack);
             }
             catch (Exception exc)
             {
@@ -331,13 +361,12 @@ namespace Algorand2FAMultisig.Controllers
         /// Do multisig signing with msg pack object from base64 and return SignedTransaction json object in msgpack base64 with signature
         /// </summary>
         /// <param name="txtCode">PIN from authenticator app</param>
-        /// <param name="msigConfigBase64">msigConfig in base64</param>
         /// <param name="signedTxMsgPack">signed Tx in msg pack</param>
         /// <param name="secondaryAccount">Recovery account</param>
         /// <returns></returns>
         [Authorize]
         [HttpPost("SignWithTwoFactorPINMsigTx")]
-        public ActionResult<string> SignWithTwoFactorPINMsigTx([FromForm] string txtCode, [FromForm] string msigConfigBase64, [FromForm] string signedTxMsgPack, [FromForm] string secondaryAccount)
+        public ActionResult<byte[]> SignWithTwoFactorPINMsigTx([FromForm] string txtCode, [FromForm] byte[] signedTxMsgPack, [FromForm] string secondaryAccount)
         {
             try
             {
@@ -348,44 +377,26 @@ namespace Algorand2FAMultisig.Controllers
                     throw new ArgumentException($"'{nameof(txtCode)}' cannot be null or empty.", nameof(txtCode));
                 }
 
-                if (msigConfigBase64 is null)
-                {
-                    throw new ArgumentNullException(nameof(msigConfigBase64));
-                }
 
-                if (string.IsNullOrEmpty(signedTxMsgPack))
-                {
-                    throw new ArgumentException($"'{nameof(signedTxMsgPack)}' cannot be null or empty.", nameof(signedTxMsgPack));
-                }
-                var msigConfig = JsonConvert.DeserializeObject<Model.Multisig>(msigConfigBase64);
-
-                if (msigConfig == null || msigConfig.Version <= 0 || msigConfig.Threshold <= 0)
-                {
-                    throw new ArgumentException($"'{nameof(signedTxMsgPack)}' cannot be null or empty. Deserialized object is null.", nameof(signedTxMsgPack));
-                }
-
-                if (string.IsNullOrEmpty(signedTxMsgPack)) throw new Exception("signedTx is empty");
-                var signedTxBytes = Convert.FromBase64String(signedTxMsgPack);
-                if (signedTxBytes == null) throw new Exception("Error in signedTx");
-
-                var signedTxObj = Algorand.Utils.Encoder.DecodeFromMsgPack<SignedTransaction>(signedTxBytes);
+                if (signedTxMsgPack == null || signedTxMsgPack.Length == 0) throw new Exception("signedTx is empty");
+                var signedTxObj = Algorand.Utils.Encoder.DecodeFromMsgPack<SignedTransaction>(signedTxMsgPack);
                 if (signedTxObj == null) throw new Exception("Error in signedTxBytes");
+                if (signedTxObj.MSig == null) throw new Exception("signedTxMsgPack is not multisig transaction.");
+
                 var seed = CreateSeed(secondaryAccount);
                 var account = new Algorand.Algod.Model.Account(seed);
                 var key = ComputeSHA256Hash($"{account.Address}-{configuration["Algo:Mnemonic"]}");
 
                 bool result = authenticatorApp.ValidateTwoFactorPIN(key, UniformTxtCode(txtCode));
                 if (!result) throw new Exception("Invalid PIN");
-                var msig = new MultisigAddress(msigConfig.Version, msigConfig.Threshold, new List<Ed25519PublicKeyParameters>(msigConfig.Signators.Select(a =>
-                {
-                    var addr = new Address(a);
-                    return new Ed25519PublicKeyParameters(addr.Bytes, 0);
-                })));
+
+                
+                var msig = new MultisigAddress(signedTxObj.MSig.Version, signedTxObj.MSig.Threshold, new List<Ed25519PublicKeyParameters>(signedTxObj.MSig.Subsigs.Select(s=>s.key)));
 
                 var signed = signedTxObj.Tx.Sign(msig, account);
                 var newSignedTxObj = MsigExtension.MsigExtension.MergeMultisigTransactions(signed, signedTxObj);
                 var messagePack = Algorand.Utils.Encoder.EncodeToMsgPackOrdered(newSignedTxObj);
-                return Ok(Convert.ToBase64String(messagePack));
+                return Ok(messagePack);
             }
             catch (Exception exc)
             {
