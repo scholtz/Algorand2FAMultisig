@@ -127,7 +127,7 @@ namespace Algorand2FAMultisig.Controllers
             try
             {
                 logger?.LogInformation($"{GetAuthUser()}:GetRealm");
-                return Ok($"{configuration["algod:realm"]}");
+                return Ok($"{configuration["AlgorandAuthentication:Realm"]}");
             }
             catch (Exception exc)
             {
