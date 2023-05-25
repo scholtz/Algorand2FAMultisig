@@ -83,12 +83,16 @@ namespace Algorand2FAMultisig.MsigExtension
         /// <returns>merged multisig transaction</returns>
         public static SignedTransaction MergeMultisigTransactions(params SignedTransaction[] txs)
         {
+            if (txs is null)
+            {
+                throw new ArgumentNullException("Txs must not be null");
+            }
+
             if (txs.Length < 2)
             {
                 throw new ArgumentException("cannot merge a single transaction");
             }
-            SignedTransaction merged = txs.FirstOrDefault(txs => txs.MSig?.Version != null);
-            if (merged == null) throw new ArgumentException("At least one transaction must have multisig configuration");
+            SignedTransaction merged = txs.FirstOrDefault(txs => txs.MSig?.Version != null) ?? throw new ArgumentException("At least one transaction must have multisig configuration");
             var emptySig = new Signature();
             for (int i = 0; i < txs.Length; i++)
             {
@@ -114,11 +118,11 @@ namespace Algorand2FAMultisig.MsigExtension
                         {
                             throw new ArgumentException("transaction msig public keys do not match");
                         }
-                        if (myMsig.sig.Equals(emptySig))
+                        if (myMsig.sig?.Equals(emptySig) == true)
                         {
                             myMsig.sig = theirMsig.sig;
                         }
-                        else if (!myMsig.sig.Equals(theirMsig.sig) &&
+                        else if (myMsig.sig?.Equals(theirMsig.sig) != true &&
                               !theirMsig.sig.Equals(emptySig))
                         {
                             throw new ArgumentException("transaction msig has mismatched signatures");
@@ -144,54 +148,6 @@ namespace Algorand2FAMultisig.MsigExtension
             return merged;
         }
 
-        /// <summary>
-        /// From algosdk lib
-        /// </summary>
-        /// <param name="txs"></param>
-        /// <returns></returns>
-        /// <exception cref="ArgumentException"></exception>
-        public static SignedTransaction MergeMultisigTransactions2(params SignedTransaction[] txs)
-        {
-            if (txs.Length < 2)
-            {
-                throw new ArgumentException("cannot merge a single transaction");
-            }
-
-            SignedTransaction signedTransaction = txs.FirstOrDefault(txs => txs.MSig != null);
-            foreach (SignedTransaction signedTransaction2 in txs)
-            {
-                if (signedTransaction2.MSig != null) // check only signed
-                {
-                    if (signedTransaction2.MSig.Version != signedTransaction.MSig.Version || signedTransaction2.MSig.Threshold != signedTransaction.MSig.Threshold)
-                    {
-                        throw new ArgumentException("transaction msig parameters do not match");
-                    }
-                }
-
-                for (int j = 0; j < signedTransaction2.MSig.Subsigs.Count; j++)
-                {
-                    MultisigSubsig multisigSubsig = signedTransaction.MSig.Subsigs[j];
-                    MultisigSubsig multisigSubsig2 = signedTransaction2.MSig.Subsigs[j];
-                    if (!multisigSubsig2.key.Equals(multisigSubsig.key))
-                    {
-                        throw new ArgumentException("transaction msig public keys do not match");
-                    }
-
-                    if (multisigSubsig.sig.Equals(new Signature()))
-                    {
-                        multisigSubsig.sig = multisigSubsig2.sig;
-                    }
-                    else if (!multisigSubsig.sig.Equals(multisigSubsig2.sig) && !multisigSubsig2.sig.Equals(new Signature()))
-                    {
-                        throw new ArgumentException("transaction msig has mismatched signatures");
-                    }
-
-                    signedTransaction.MSig.Subsigs[j] = multisigSubsig;
-                }
-            }
-
-            return signedTransaction;
-        }
         /// <summary>
         /// AppendMultisigTransaction appends our signature to the given multisig transaction.
         /// </summary>

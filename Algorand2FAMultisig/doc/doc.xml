@@ -9,13 +9,14 @@
             API controller
             </summary>
         </member>
-        <member name="M:Algorand2FAMultisig.Controllers.MultisigController.#ctor(Microsoft.Extensions.Logging.ILogger{Algorand2FAMultisig.Controllers.MultisigController},Microsoft.Extensions.Configuration.IConfiguration,Algorand2FAMultisig.Repository.Interface.IAuthenticatorApp)">
+        <member name="M:Algorand2FAMultisig.Controllers.MultisigController.#ctor(Microsoft.Extensions.Logging.ILogger{Algorand2FAMultisig.Controllers.MultisigController},Microsoft.Extensions.Configuration.IConfiguration,Algorand2FAMultisig.Repository.Interface.IAuthenticatorApp,Algorand2FAMultisig.Repository.Interface.IStorage)">
             <summary>
             Constructor
             </summary>
             <param name="logger"></param>
             <param name="configuration"></param>
             <param name="authenticatorApp"></param>
+            <param name="storage"></param>
             <exception cref="T:System.Exception"></exception>
         </member>
         <member name="M:Algorand2FAMultisig.Controllers.MultisigController.SetAuthUser(System.String)">
@@ -205,14 +206,6 @@
             <param name="txs">partially signed multisig transactions to merge. Underlying transactions may be mutated.</param>
             <returns>merged multisig transaction</returns>
         </member>
-        <member name="M:Algorand2FAMultisig.MsigExtension.MsigExtension.MergeMultisigTransactions2(Algorand.Algod.Model.Transactions.SignedTransaction[])">
-            <summary>
-            From algosdk lib
-            </summary>
-            <param name="txs"></param>
-            <returns></returns>
-            <exception cref="T:System.ArgumentException"></exception>
-        </member>
         <member name="M:Algorand2FAMultisig.MsigExtension.MsigExtension.AppendMultisigTransaction(Algorand.Algod.Model.Account,Algorand.MultisigAddress,Algorand.Algod.Model.Transactions.SignedTransaction)">
             <summary>
             AppendMultisigTransaction appends our signature to the given multisig transaction.
@@ -232,6 +225,174 @@
             Main entry point
             </summary>
             <param name="args"></param>
+        </member>
+        <member name="T:Algorand2FAMultisig.Repository.Implementation.GoogleAuthenticatorApp">
+            <summary>
+            Google auth app
+            </summary>
+        </member>
+        <member name="M:Algorand2FAMultisig.Repository.Implementation.GoogleAuthenticatorApp.#ctor(Microsoft.Extensions.Configuration.IConfiguration)">
+            <summary>
+            Constructor
+            </summary>
+            <param name="configuration"></param>
+        </member>
+        <member name="M:Algorand2FAMultisig.Repository.Implementation.GoogleAuthenticatorApp.GenerateSetupCode(Algorand.Algod.Model.Account,System.String,System.String,System.Boolean,System.Int32)">
+            <summary>
+            Setup code
+            </summary>
+            <param name="account"></param>
+            <param name="accountTitleNoSpaces"></param>
+            <param name="accountSecretKey"></param>
+            <param name="secretIsBase32"></param>
+            <param name="qrPixelsPerModule"></param>
+            <returns></returns>
+        </member>
+        <member name="M:Algorand2FAMultisig.Repository.Implementation.GoogleAuthenticatorApp.ValidateTwoFactorPIN(System.String,System.String,System.Boolean)">
+            <summary>
+            Validate pin
+            </summary>
+            <param name="accountSecretKey"></param>
+            <param name="twoFactorCodeFromClient"></param>
+            <param name="secretIsBase32"></param>
+            <returns></returns>
+        </member>
+        <member name="T:Algorand2FAMultisig.Repository.Implementation.MockAuthenticatorApp">
+            <summary>
+            Mock auth app
+            </summary>
+        </member>
+        <member name="M:Algorand2FAMultisig.Repository.Implementation.MockAuthenticatorApp.#ctor(Microsoft.Extensions.Configuration.IConfiguration)">
+            <summary>
+            Constructor
+            </summary>
+            <param name="configuration"></param>
+        </member>
+        <member name="M:Algorand2FAMultisig.Repository.Implementation.MockAuthenticatorApp.GenerateSetupCode(Algorand.Algod.Model.Account,System.String,System.String,System.Boolean,System.Int32)">
+            <summary>
+            Setup code
+            </summary>
+            <param name="account"></param>
+            <param name="accountTitleNoSpaces"></param>
+            <param name="accountSecretKey"></param>
+            <param name="secretIsBase32"></param>
+            <param name="qrPixelsPerModule"></param>
+            <returns></returns>
+        </member>
+        <member name="M:Algorand2FAMultisig.Repository.Implementation.MockAuthenticatorApp.ValidateTwoFactorPIN(System.String,System.String,System.Boolean)">
+            <summary>
+            Validate pin
+            </summary>
+            <param name="accountSecretKey"></param>
+            <param name="twoFactorCodeFromClient"></param>
+            <param name="secretIsBase32"></param>
+            <returns></returns>
+        </member>
+        <member name="T:Algorand2FAMultisig.Repository.Implementation.Storage.StorageFile">
+            <summary>
+            Simple file persistant storage
+            </summary>
+        </member>
+        <member name="M:Algorand2FAMultisig.Repository.Implementation.Storage.StorageFile.#ctor(Microsoft.Extensions.Logging.ILogger{Algorand2FAMultisig.Repository.Implementation.Storage.StorageFile},Microsoft.Extensions.Configuration.IConfiguration)">
+            <summary>
+            Constructor
+            </summary>
+            <param name="logger"></param>
+            <param name="configuration"></param>
+        </member>
+        <member name="M:Algorand2FAMultisig.Repository.Implementation.Storage.StorageFile.Exists(System.String,System.String,System.String)">
+            <summary>
+            Check if configuration exists
+            </summary>
+            <param name="primaryAccount"></param>
+            <param name="twoFactorAccount"></param>
+            <param name="secondaryAccount"></param>
+            <returns></returns>
+        </member>
+        <member name="M:Algorand2FAMultisig.Repository.Implementation.Storage.StorageFile.Save(System.String,System.String,System.String)">
+            <summary>
+            Store file to filesystem
+            </summary>
+            <param name="primaryAccount"></param>
+            <param name="twoFactorAccount"></param>
+            <param name="secondaryAccount"></param>
+            <returns></returns>
+        </member>
+        <member name="T:Algorand2FAMultisig.Repository.Implementation.Storage.StorageMock">
+            <summary>
+            Storage in ram for tests
+            </summary>
+        </member>
+        <member name="M:Algorand2FAMultisig.Repository.Implementation.Storage.StorageMock.Clear">
+            <summary>
+            Clear data
+            </summary>
+        </member>
+        <member name="M:Algorand2FAMultisig.Repository.Implementation.Storage.StorageMock.Exists(System.String,System.String,System.String)">
+            <summary>
+            Check if config exists
+            </summary>
+            <param name="primaryAccount"></param>
+            <param name="twoFactorAccount"></param>
+            <param name="secondaryAccount"></param>
+            <returns></returns>
+        </member>
+        <member name="M:Algorand2FAMultisig.Repository.Implementation.Storage.StorageMock.Save(System.String,System.String,System.String)">
+            <summary>
+            Store config
+            </summary>
+            <param name="primaryAccount"></param>
+            <param name="twoFactorAccount"></param>
+            <param name="secondaryAccount"></param>
+            <returns></returns>
+        </member>
+        <member name="T:Algorand2FAMultisig.Repository.Interface.IAuthenticatorApp">
+            <summary>
+            Auth app
+            </summary>
+        </member>
+        <member name="M:Algorand2FAMultisig.Repository.Interface.IAuthenticatorApp.ValidateTwoFactorPIN(System.String,System.String,System.Boolean)">
+            <summary>
+            Validate pin
+            </summary>
+            <param name="accountSecretKey"></param>
+            <param name="twoFactorCodeFromClient"></param>
+            <param name="secretIsBase32"></param>
+            <returns></returns>
+        </member>
+        <member name="M:Algorand2FAMultisig.Repository.Interface.IAuthenticatorApp.GenerateSetupCode(Algorand.Algod.Model.Account,System.String,System.String,System.Boolean,System.Int32)">
+            <summary>
+            Generate setup code
+            </summary>
+            <param name="account"></param>
+            <param name="accountTitleNoSpaces"></param>
+            <param name="accountSecretKey"></param>
+            <param name="secretIsBase32"></param>
+            <param name="qrPixelsPerModule"></param>
+            <returns></returns>
+        </member>
+        <member name="T:Algorand2FAMultisig.Repository.Interface.IStorage">
+            <summary>
+            Storage interface.
+            </summary>
+        </member>
+        <member name="M:Algorand2FAMultisig.Repository.Interface.IStorage.Exists(System.String,System.String,System.String)">
+            <summary>
+            Check if configuration of accounts already exists
+            </summary>
+            <param name="primaryAccount"></param>
+            <param name="twoFactorAccount"></param>
+            <param name="secondaryAccount"></param>
+            <returns></returns>
+        </member>
+        <member name="M:Algorand2FAMultisig.Repository.Interface.IStorage.Save(System.String,System.String,System.String)">
+            <summary>
+            Stores the configuration of accounts
+            </summary>
+            <param name="primaryAccount"></param>
+            <param name="twoFactorAccount"></param>
+            <param name="secondaryAccount"></param>
+            <returns></returns>
         </member>
     </members>
 </doc>

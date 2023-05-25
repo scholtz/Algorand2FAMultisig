@@ -22,6 +22,7 @@ namespace Algorand2FAMultisig.Controllers
         private readonly ILogger<MultisigController> logger;
         private readonly IConfiguration configuration;
         private readonly IAuthenticatorApp authenticatorApp;
+        private readonly IStorage storage;
         private string AuthUser = "";
         /// <summary>
         /// Constructor
@@ -29,12 +30,14 @@ namespace Algorand2FAMultisig.Controllers
         /// <param name="logger"></param>
         /// <param name="configuration"></param>
         /// <param name="authenticatorApp"></param>
+        /// <param name="storage"></param>
         /// <exception cref="Exception"></exception>
-        public MultisigController(ILogger<MultisigController> logger, IConfiguration configuration, IAuthenticatorApp authenticatorApp)
+        public MultisigController(ILogger<MultisigController> logger, IConfiguration configuration, IAuthenticatorApp authenticatorApp, IStorage storage)
         {
             this.logger = logger;
             this.configuration = configuration;
             this.authenticatorApp = authenticatorApp;
+            this.storage = storage;
 
             if (string.IsNullOrEmpty(configuration["Algo:Mnemonic"])) throw new Exception("Please configure Algo:Mnemonic in secrets");
             // _ = new Algorand.Algod.Model.Account(configuration["Algo:Mnemonic"]); // in Algo:Mnemonic is stored key for generating accounts
@@ -65,8 +68,7 @@ namespace Algorand2FAMultisig.Controllers
         [NonAction]
         public static string ComputeSHA256Hash(string text)
         {
-            using var sha256 = SHA256.Create();
-            return BitConverter.ToString(sha256.ComputeHash(Encoding.UTF8.GetBytes(text))).Replace("-", "").ToLower();
+            return BitConverter.ToString(SHA256.HashData(Encoding.UTF8.GetBytes(text))).Replace("-", "").ToLower();
         }
         /// <summary>
         /// Unifies the code.. Trim and remove -.
@@ -86,8 +88,7 @@ namespace Algorand2FAMultisig.Controllers
         [NonAction]
         public static byte[] ComputeSHA256HashBytes(string text)
         {
-            using var sha256 = SHA256.Create();
-            return sha256.ComputeHash(Encoding.UTF8.GetBytes(text));
+            return SHA256.HashData(Encoding.UTF8.GetBytes(text));
         }
         /// <summary>
         /// Create seed for authenticated user and sedondary account with configuration password
@@ -198,8 +199,7 @@ namespace Algorand2FAMultisig.Controllers
             try
             {
                 if (password.Length < 10) throw new Exception("Password must be at least 10 char long");
-                var signedTxObj = Algorand.Utils.Encoder.DecodeFromMsgPack<SignedTransaction>(signedTxMsgPack);
-                if (signedTxObj == null) throw new Exception("Error in signedTxBytes");
+                var signedTxObj = Algorand.Utils.Encoder.DecodeFromMsgPack<SignedTransaction>(signedTxMsgPack) ?? throw new Exception("Error in signedTxBytes");
                 if (signedTxObj.MSig == null) throw new Exception("signedTxMsgPack is not multisig transaction.");
 
 
@@ -275,13 +275,18 @@ namespace Algorand2FAMultisig.Controllers
             {
                 logger?.LogInformation($"{GetAuthUser()}:SetupAuthenticator");
 
-                // TODO check from the DB if secondary account has been setup for this account already (it is stored at ConfirmSetupAuthenticator method)
-                // if secondary account exists, deny this request
+
 
                 logger?.LogError($"{GetAuthUser()}:SetupAuthenticator TODO check from the DB if secondary account {secondaryAccount}");
 
                 var seed = CreateSeed(secondaryAccount);
                 var account = new Algorand.Algod.Model.Account(seed);
+
+                if (storage.Exists(GetAuthUser(), account.Address.EncodeAsString(), secondaryAccount))
+                {
+                    throw new Exception("You have already confirmed setup for these accounts and we cannot show you secret again. Use your primary and recovery account to rekey to new 2fa setup with different recovery account.");
+                }
+
                 var key = ComputeSHA256Hash($"{account.Address}-{configuration["Algo:Mnemonic"]}");
                 var ret = authenticatorApp.GenerateSetupCode(account, accountTitleNoSpaces, key, false, 3);
 
@@ -306,18 +311,25 @@ namespace Algorand2FAMultisig.Controllers
         {
             try
             {
-                // TODO check from the DB if secondary account has been setup for this account already
-                // if secondary account exists, deny this request
-
                 logger?.LogInformation($"{GetAuthUser()}:TestValidateTwoFactorPIN");
 
                 var seed = CreateSeed(secondaryAccount);
                 var account = new Algorand.Algod.Model.Account(seed);
+
+                if (storage.Exists(GetAuthUser(), account.Address.EncodeAsString(), secondaryAccount))
+                {
+                    throw new Exception("You have already confirmed setup for these accounts and we cannot show you secret again. Use your primary and recovery account to rekey to new 2fa setup with different recovery account.");
+                }
+
                 var key = ComputeSHA256Hash($"{account.Address}-{configuration["Algo:Mnemonic"]}");
 
                 bool result = authenticatorApp.ValidateTwoFactorPIN(key, UniformTxtCode(txtCode));
 
-                // TODO .. save secondaryAccount
+
+                if (!storage.Save(GetAuthUser(), account.Address.EncodeAsString(), secondaryAccount))
+                {
+                    throw new Exception("There are issues with the storage right now. Please try again later.");
+                }
 
                 return Ok(account.Address.EncodeAsString());
             }
@@ -379,8 +391,7 @@ namespace Algorand2FAMultisig.Controllers
 
 
                 if (signedTxMsgPack == null || signedTxMsgPack.Length == 0) throw new Exception("signedTx is empty");
-                var signedTxObj = Algorand.Utils.Encoder.DecodeFromMsgPack<SignedTransaction>(signedTxMsgPack);
-                if (signedTxObj == null) throw new Exception("Error in signedTxBytes");
+                var signedTxObj = Algorand.Utils.Encoder.DecodeFromMsgPack<SignedTransaction>(signedTxMsgPack) ?? throw new Exception("Error in signedTxBytes");
                 if (signedTxObj.MSig == null) throw new Exception("signedTxMsgPack is not multisig transaction.");
 
                 var seed = CreateSeed(secondaryAccount);
@@ -390,8 +401,8 @@ namespace Algorand2FAMultisig.Controllers
                 bool result = authenticatorApp.ValidateTwoFactorPIN(key, UniformTxtCode(txtCode));
                 if (!result) throw new Exception("Invalid PIN");
 
-                
-                var msig = new MultisigAddress(signedTxObj.MSig.Version, signedTxObj.MSig.Threshold, new List<Ed25519PublicKeyParameters>(signedTxObj.MSig.Subsigs.Select(s=>s.key)));
+
+                var msig = new MultisigAddress(signedTxObj.MSig.Version, signedTxObj.MSig.Threshold, new List<Ed25519PublicKeyParameters>(signedTxObj.MSig.Subsigs.Select(s => s.key)));
 
                 var signed = signedTxObj.Tx.Sign(msig, account);
                 var newSignedTxObj = MsigExtension.MsigExtension.MergeMultisigTransactions(signed, signedTxObj);

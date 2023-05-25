@@ -62,6 +62,7 @@ namespace Algorand2FAMultisig
                  o.EmptySuccessOnFailure = algorandAuthenticationOptions.EmptySuccessOnFailure;
              });
 
+            builder.Services.AddSingleton(typeof(Repository.Interface.IStorage), typeof(Repository.Implementation.Storage.StorageFile));
             builder.Services.AddSingleton(typeof(Repository.Interface.IAuthenticatorApp), typeof(Repository.Implementation.GoogleAuthenticatorApp));
             builder.Services.AddProblemDetails();
 

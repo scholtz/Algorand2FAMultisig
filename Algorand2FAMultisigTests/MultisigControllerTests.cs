@@ -18,6 +18,7 @@ using Newtonsoft.Json;
 using Algorand.Utils;
 using Algorand2FAMultisig.MsigExtension;
 using Microsoft.AspNetCore.Identity;
+using Algorand2FAMultisig.Repository.Implementation.Storage;
 
 namespace Algorand2FAMultisigTests
 {
@@ -31,6 +32,7 @@ namespace Algorand2FAMultisigTests
         private readonly List<string> Accounts;
         private readonly Algorand2FAMultisig.Model.Multisig MsigConfig;
         private readonly MultisigAddress MultiAddress;
+        private readonly StorageMock storage;
         public MultisigControllerTests()
         {
             var configuration = new Mock<Microsoft.Extensions.Configuration.IConfiguration>();
@@ -49,13 +51,15 @@ namespace Algorand2FAMultisigTests
 
             var logger = new Mock<ILogger<MultisigController>>();
             var authApp = new GoogleAuthenticatorApp(configuration.Object);
-            _controller = new MultisigController(logger.Object, configuration.Object, authApp);
+            storage = new StorageMock();
+            _controller = new MultisigController(logger.Object, configuration.Object, authApp, storage);
             _controller.SetAuthUser(primaryAccount);
         }
 
         [SetUp]
         public void Setup()
         {
+            storage.Clear();
         }
 
         [Test]
@@ -63,9 +67,9 @@ namespace Algorand2FAMultisigTests
         {
             var ret = _controller.SetupAuthenticator("title", secondaryAccount);
             var result = ret.Result as OkObjectResult;
-            Assert.IsNotNull(result);
+            Assert.That(result, Is.Not.Null);
             var resultObj = result.Value as Algorand2FAMultisig.Model.SetupReturn;
-            Assert.IsNotNull(resultObj);
+            Assert.That(resultObj, Is.Not.Null);
         }
 
         [Test]
@@ -83,14 +87,14 @@ namespace Algorand2FAMultisigTests
             var ret = _controller.SetupAuthenticator("title", secondaryAccount);
             var key = MultisigController.ComputeSHA256Hash($"{twoFaAccount}-{secret}");
             var result = ret.Result as OkObjectResult;
-            Assert.IsNotNull(result);
+            Assert.That(result, Is.Not.Null);
             var resultObj = result.Value as Algorand2FAMultisig.Model.SetupReturn;
-            Assert.IsNotNull(resultObj);
+            Assert.That(resultObj, Is.Not.Null);
             TwoFactorAuthenticator tfa = new();
             var pin = tfa.GetCurrentPIN(key);
 
             var httpClient = HttpClientConfigurator.ConfigureHttpClient("https://testnet-api.algonode.cloud", "aa");
-            DefaultApi algodApiInstance = new DefaultApi(httpClient);
+            var algodApiInstance = new DefaultApi(httpClient);
             var transParams = await algodApiInstance.TransactionParamsAsync();
             transParams.LastRound = 1;
             var address = new Address(primaryAccount);
@@ -125,7 +129,7 @@ namespace Algorand2FAMultisigTests
         public async Task PasswordAccountSignTest()
         {
             var httpClient = HttpClientConfigurator.ConfigureHttpClient("https://testnet-api.algonode.cloud", "aa");
-            DefaultApi algodApiInstance = new DefaultApi(httpClient);
+            DefaultApi algodApiInstance = new(httpClient);
             var transParams = await algodApiInstance.TransactionParamsAsync();
             transParams.LastRound = 1;
 
@@ -155,9 +159,9 @@ namespace Algorand2FAMultisigTests
         {
             var ret = _controller.SetupAuthenticator("title", secondaryAccount);
             var result = ret.Result as OkObjectResult;
-            Assert.IsNotNull(result);
+            Assert.That(result, Is.Not.Null);
             var resultObj = result.Value as Algorand2FAMultisig.Model.SetupReturn;
-            Assert.IsNotNull(resultObj);
+            Assert.That(resultObj, Is.Not.Null);
 
 
             var key = MultisigController.ComputeSHA256Hash($"{twoFaAccount}-{secret}");
@@ -165,7 +169,7 @@ namespace Algorand2FAMultisigTests
             var pin = tfa.GetCurrentPIN(key);
             var retPinVerify = _controller.TestValidateTwoFactorPIN(pin, secondaryAccount);
             var resultPinVerify = retPinVerify.Result as OkObjectResult;
-            Assert.IsNotNull(resultPinVerify);
+            Assert.That(resultPinVerify, Is.Not.Null);
             var resultObjPinVerify = Convert.ToBoolean(resultPinVerify.Value);
             Assert.That(resultObjPinVerify, Is.True);
 
@@ -175,9 +179,9 @@ namespace Algorand2FAMultisigTests
         {
             var ret = _controller.SetupAuthenticator("title", secondaryAccount);
             var result = ret.Result as OkObjectResult;
-            Assert.IsNotNull(result);
+            Assert.That(result, Is.Not.Null);
             var resultObj = result.Value as Algorand2FAMultisig.Model.SetupReturn;
-            Assert.IsNotNull(resultObj);
+            Assert.That(resultObj, Is.Not.Null);
 
 
             var key = MultisigController.ComputeSHA256Hash($"BDICA3QGKI2WCR7PBSKRGDQAJKCHT55RKCX5GBDSOK5WFLI4XLTAALXTMQ-{secret}");
@@ -187,7 +191,7 @@ namespace Algorand2FAMultisigTests
             var wrongPin = (++num).ToString();
             var retPinVerify = _controller.TestValidateTwoFactorPIN(wrongPin, secondaryAccount);
             var resultPinVerify = retPinVerify.Result as OkObjectResult;
-            Assert.IsNotNull(resultPinVerify);
+            Assert.That(resultPinVerify, Is.Not.Null);
             var resultObjPinVerify = Convert.ToBoolean(resultPinVerify.Value);
             Assert.That(resultObjPinVerify, Is.False);
 
@@ -210,11 +214,11 @@ namespace Algorand2FAMultisigTests
             var randomAccount = new Algorand.Algod.Model.Account();
 
             var httpClient = HttpClientConfigurator.ConfigureHttpClient(ALGOD_API_ADDR, ALGOD_API_TOKEN);
-            DefaultApi algodApiInstance = new DefaultApi(httpClient);
+            var algodApiInstance = new DefaultApi(httpClient);
 
             // A multisig address is the hash of the following information
             // Note that the second argument (2) means in this case "2 of 3 signatures are required"
-            MultisigAddress multiAddress = new MultisigAddress(1, 2, new List<byte[]> { acc1.Address.Bytes, acc2.Address.Bytes, acc3.Address.Bytes });
+            var multiAddress = new MultisigAddress(1, 2, new List<byte[]> { acc1.Address.Bytes, acc2.Address.Bytes, acc3.Address.Bytes });
 
             // Send *to* the multisig address
             var transParams = await algodApiInstance.TransactionParamsAsync();
@@ -234,10 +238,41 @@ namespace Algorand2FAMultisigTests
 
             tx = await Utils.SubmitTransaction(algodApiInstance, signedTx);
             var result = await Utils.WaitTransactionToComplete(algodApiInstance, tx.Txid);
-
+            Assert.That(result, Is.Not.Null);
             // now let's check the account received the amount
             var accountInfo = await algodApiInstance.AccountInformationAsync(randomAccount.Address.ToString(), null, null);
             Console.WriteLine($"For account address {randomAccount.Address} the account balance is {accountInfo.Amount}");
         }
+
+
+        [Test]
+        public void ConfirmSetupAuthenticatorTest()
+        {
+            var ret = _controller.SetupAuthenticator("title", secondaryAccount);
+            var result = ret.Result as OkObjectResult;
+            Assert.That(result, Is.Not.Null);
+            var resultObj = result.Value as Algorand2FAMultisig.Model.SetupReturn;
+            Assert.That(resultObj, Is.Not.Null);
+
+
+            var key = MultisigController.ComputeSHA256Hash($"BDICA3QGKI2WCR7PBSKRGDQAJKCHT55RKCX5GBDSOK5WFLI4XLTAALXTMQ-{secret}");
+            TwoFactorAuthenticator tfa = new();
+            var pin = tfa.GetCurrentPIN(key);
+
+            var confirmRet = _controller.ConfirmSetupAuthenticator(pin, secondaryAccount);
+            var confirmResult = confirmRet.Result as OkObjectResult;
+            Assert.That(confirmResult, Is.Not.Null);
+
+            // second attempt must fail because the storage is there 
+            ret = _controller.SetupAuthenticator("title", secondaryAccount);
+            result = ret.Result as OkObjectResult;
+            Assert.That(result, Is.Null);
+
+            confirmRet =  _controller.ConfirmSetupAuthenticator(pin, secondaryAccount); 
+            confirmResult = confirmRet.Result as OkObjectResult;
+            Assert.That(confirmResult, Is.Null);
+
+        }
+
     }
 }
