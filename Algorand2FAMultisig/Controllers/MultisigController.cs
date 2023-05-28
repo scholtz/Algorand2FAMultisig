@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json;
 using Org.BouncyCastle.Crypto.Parameters;
+using System.Collections.Concurrent;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
@@ -24,6 +25,7 @@ namespace Algorand2FAMultisig.Controllers
         private readonly IAuthenticatorApp authenticatorApp;
         private readonly IStorage storage;
         private string AuthUser = "";
+        private readonly ConcurrentDictionary<string, DateTimeOffset> InvalidPinAttempts = new ConcurrentDictionary<string, DateTimeOffset>();
         /// <summary>
         /// Constructor
         /// </summary>
@@ -58,6 +60,49 @@ namespace Algorand2FAMultisig.Controllers
         public string GetAuthUser()
         {
             return User?.Identity?.Name ?? AuthUser;
+        }
+
+        /// <summary>
+        /// To prevent brute force if hacker has stolen primary account, store time of invalid attempt
+        /// </summary>
+        [NonAction]
+        public void SetUserInvalidPinTooManyAttempts()
+        {
+            var user = GetAuthUser();
+            logger.LogWarning($"InvalidPinAttempt: {user}");
+            InvalidPinAttempts[user] = DateTimeOffset.UtcNow;
+
+            foreach (var item in InvalidPinAttempts.Keys)
+            {
+                if (InvalidPinAttempts.TryGetValue(user, out var time))
+                {
+                    if (time.AddHours(1) < DateTimeOffset.UtcNow)
+                    {
+                        // user entered invalid pin long time ago, we can remove it from ram
+                        InvalidPinAttempts.TryRemove(item, out _);
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// To prevent brute force if hacker has stolen primary account, check if invalid attempt was very soon to new attempt
+        /// </summary>
+        /// <returns>If true, user can continue.. Did not enter invalid pin recently</returns>
+        [NonAction]
+        public bool CheckInvalidAttempt()
+        {
+            var user = GetAuthUser();
+            if (InvalidPinAttempts.TryGetValue(user, out var time))
+            {
+                if (time.AddSeconds(60) > DateTimeOffset.UtcNow)
+                {
+                    // user entered invalid pin in short time
+                    return false;
+                }
+            }
+
+            return true;
         }
 
         /// <summary>
@@ -312,7 +357,10 @@ namespace Algorand2FAMultisig.Controllers
             try
             {
                 logger?.LogInformation($"{GetAuthUser()}:TestValidateTwoFactorPIN");
-
+                if (!CheckInvalidAttempt())
+                {
+                    throw new Exception("Invalid PIN. Please try again in 60 seconds.");
+                }
                 var seed = CreateSeed(secondaryAccount);
                 var account = new Algorand.Algod.Model.Account(seed);
 
@@ -324,6 +372,8 @@ namespace Algorand2FAMultisig.Controllers
                 var key = ComputeSHA256Hash($"{account.Address}-{configuration["Algo:Mnemonic"]}");
 
                 bool result = authenticatorApp.ValidateTwoFactorPIN(key, UniformTxtCode(txtCode));
+                if (!result) { SetUserInvalidPinTooManyAttempts(); }
+                if (!result) throw new Exception("Invalid PIN. Please try again in 60 seconds.");
 
 
                 if (!storage.Save(GetAuthUser(), account.Address.EncodeAsString(), secondaryAccount))
@@ -354,11 +404,17 @@ namespace Algorand2FAMultisig.Controllers
             {
                 logger?.LogInformation($"{GetAuthUser()}:TestValidateTwoFactorPIN");
 
+                if (!CheckInvalidAttempt())
+                {
+                    return Ok(false);
+                }
+
                 var seed = CreateSeed(secondaryAccount);
                 var account = new Algorand.Algod.Model.Account(seed);
                 var key = ComputeSHA256Hash($"{account.Address}-{configuration["Algo:Mnemonic"]}");
 
                 bool result = authenticatorApp.ValidateTwoFactorPIN(key, UniformTxtCode(txtCode));
+                if (!result) { SetUserInvalidPinTooManyAttempts(); }
 
                 return Ok(result);
             }
@@ -384,6 +440,11 @@ namespace Algorand2FAMultisig.Controllers
             {
                 logger?.LogInformation($"{GetAuthUser()}:SignWithTwoFactorPINMsigTx");
 
+                if (!CheckInvalidAttempt())
+                {
+                    throw new Exception("Invalid PIN. Please try again in 60 seconds.");
+                }
+
                 if (string.IsNullOrEmpty(txtCode))
                 {
                     throw new ArgumentException($"'{nameof(txtCode)}' cannot be null or empty.", nameof(txtCode));
@@ -399,7 +460,9 @@ namespace Algorand2FAMultisig.Controllers
                 var key = ComputeSHA256Hash($"{account.Address}-{configuration["Algo:Mnemonic"]}");
 
                 bool result = authenticatorApp.ValidateTwoFactorPIN(key, UniformTxtCode(txtCode));
-                if (!result) throw new Exception("Invalid PIN");
+                if (!result) { SetUserInvalidPinTooManyAttempts(); }
+
+                if (!result) throw new Exception("Invalid PIN. Please try again in 60 seconds.");
 
 
                 var msig = new MultisigAddress(signedTxObj.MSig.Version, signedTxObj.MSig.Threshold, new List<Ed25519PublicKeyParameters>(signedTxObj.MSig.Subsigs.Select(s => s.key)));
@@ -414,6 +477,14 @@ namespace Algorand2FAMultisig.Controllers
                 logger?.LogError(exc.Message);
                 return BadRequest(new ProblemDetails() { Detail = exc.Message });
             }
+        }
+        /// <summary>
+        /// For testing purposes only
+        /// </summary>
+        [NonAction]
+        public void Clear()
+        {
+            InvalidPinAttempts.Clear();
         }
     }
 }

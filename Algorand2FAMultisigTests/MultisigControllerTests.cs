@@ -60,6 +60,7 @@ namespace Algorand2FAMultisigTests
         public void Setup()
         {
             storage.Clear();
+            _controller.Clear();
         }
 
         [Test]
@@ -186,15 +187,27 @@ namespace Algorand2FAMultisigTests
 
             var key = MultisigController.ComputeSHA256Hash($"BDICA3QGKI2WCR7PBSKRGDQAJKCHT55RKCX5GBDSOK5WFLI4XLTAALXTMQ-{secret}");
             TwoFactorAuthenticator tfa = new();
-            var pin = tfa.GetCurrentPIN(key);
-            var num = Convert.ToUInt64(pin);
-            var wrongPin = (++num).ToString();
-            var retPinVerify = _controller.TestValidateTwoFactorPIN(wrongPin, secondaryAccount);
-            var resultPinVerify = retPinVerify.Result as OkObjectResult;
-            Assert.That(resultPinVerify, Is.Not.Null);
-            var resultObjPinVerify = Convert.ToBoolean(resultPinVerify.Value);
-            Assert.That(resultObjPinVerify, Is.False);
-
+            if (true)
+            {
+                var pin = tfa.GetCurrentPIN(key);
+                var num = Convert.ToUInt64(pin);
+                var wrongPin = (++num).ToString();
+                var retPinVerify = _controller.TestValidateTwoFactorPIN(wrongPin, secondaryAccount);
+                var resultPinVerify = retPinVerify.Result as OkObjectResult;
+                Assert.That(resultPinVerify, Is.Not.Null);
+                var resultObjPinVerify = Convert.ToBoolean(resultPinVerify.Value);
+                Assert.That(resultObjPinVerify, Is.False);
+            }
+            // even after the pin is entered correctly within 60 seconds after invalid pin, the result must be negative
+            if (true)
+            {
+                var pin = tfa.GetCurrentPIN(key);
+                var retPinVerify = _controller.TestValidateTwoFactorPIN(pin, secondaryAccount);
+                var resultPinVerify = retPinVerify.Result as OkObjectResult;
+                Assert.That(resultPinVerify, Is.Not.Null);
+                var resultObjPinVerify = Convert.ToBoolean(resultPinVerify.Value);
+                Assert.That(resultObjPinVerify, Is.False);
+            }
         }
 
         [Test]
@@ -255,7 +268,7 @@ namespace Algorand2FAMultisigTests
             Assert.That(resultObj, Is.Not.Null);
 
 
-            var key = MultisigController.ComputeSHA256Hash($"BDICA3QGKI2WCR7PBSKRGDQAJKCHT55RKCX5GBDSOK5WFLI4XLTAALXTMQ-{secret}");
+            var key = MultisigController.ComputeSHA256Hash($"{twoFaAccount}-{secret}");
             TwoFactorAuthenticator tfa = new();
             var pin = tfa.GetCurrentPIN(key);
 

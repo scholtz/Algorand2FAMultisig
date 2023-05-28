@@ -29,6 +29,17 @@
             For testing purposes only
             </summary>
         </member>
+        <member name="M:Algorand2FAMultisig.Controllers.MultisigController.SetUserInvalidPinTooManyAttempts">
+            <summary>
+            To prevent brute force if hacker has stolen primary account, store time of invalid attempt
+            </summary>
+        </member>
+        <member name="M:Algorand2FAMultisig.Controllers.MultisigController.CheckInvalidAttempt">
+            <summary>
+            To prevent brute force if hacker has stolen primary account, check if invalid attempt was very soon to new attempt
+            </summary>
+            <returns>If true, user can continue.. Did not enter invalid pin recently</returns>
+        </member>
         <member name="M:Algorand2FAMultisig.Controllers.MultisigController.ComputeSHA256Hash(System.String)">
             <summary>
             SHA256
@@ -131,6 +142,11 @@
             <param name="signedTxMsgPack">signed Tx in msg pack</param>
             <param name="secondaryAccount">Recovery account</param>
             <returns></returns>
+        </member>
+        <member name="M:Algorand2FAMultisig.Controllers.MultisigController.Clear">
+            <summary>
+            For testing purposes only
+            </summary>
         </member>
         <member name="T:Algorand2FAMultisig.Model.Multisig">
             <summary>
