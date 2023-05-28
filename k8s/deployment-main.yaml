@@ -44,10 +44,28 @@ spec:
             - name: algo2fa-main-conf
               mountPath: /app/appsettings.json
               subPath: appsettings.json
+            - name: algo2fa-main-pvc
+              mountPath: /app/Data
       volumes:
         - name: algo2fa-main-conf
           configMap:
             name: algo2fa-main-conf
+        - name: algo2fa-main-pvc
+          persistentVolumeClaim:
+            claimName: algo2fa-main-pvc
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: algo2fa-main-pvc
+  namespace: algo2fa
+spec:
+  storageClassName: nfs-slow-retain
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 1Gi
 ---
 
 apiVersion: v1

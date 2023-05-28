@@ -22,7 +22,7 @@ spec:
       - name: regcred
       containers:
         - name: algo2fa-web-testnet
-          image: scholtz2/algorand-2fa-multisig:1.2023.05.25-beta
+          image: scholtz2/algorand-2fa-multisig:1.2023.05.28-beta
           imagePullPolicy: Always
           ports: 
             - containerPort: 80
@@ -44,10 +44,28 @@ spec:
             - name: algo2fa-testnet-conf
               mountPath: /app/appsettings.json
               subPath: appsettings.json
+            - name: algo2fa-testnet-pvc
+              mountPath: /app/Data
       volumes:
         - name: algo2fa-testnet-conf
           configMap:
             name: algo2fa-testnet-conf
+        - name: algo2fa-testnet-pvc
+          persistentVolumeClaim:
+            claimName: algo2fa-testnet-pvc
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: algo2fa-testnet-pvc
+  namespace: algo2fa
+spec:
+  storageClassName: nfs-slow-retain
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 1Gi
 ---
 
 apiVersion: v1
