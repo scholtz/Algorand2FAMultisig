@@ -1,3 +1,4 @@
+using Algorand2FAMultisig.Controllers;
 using AlgorandAuthentication;
 using Microsoft.Extensions.Configuration;
 using Microsoft.OpenApi.Models;
@@ -79,6 +80,19 @@ namespace Algorand2FAMultisig
             });
 
             var app = builder.Build();
+
+            app.Logger.LogInformation("Preloading singletons");
+            _ = app.Services.GetService<Repository.Interface.IStorage>();
+            _ = app.Services.GetService< Repository.Interface.IAuthenticatorApp>();
+            var scopeFactory = app.Services.GetService< IServiceScopeFactory>();
+
+            app.Logger.LogInformation("Preloading MultisigController");
+            using (var scope = scopeFactory?.CreateScope())
+            {
+                _ = scope?.ServiceProvider.GetService<MultisigController>();
+            }
+            app.Logger.LogInformation("Preloading finished");
+
 
             // Configure the HTTP request pipeline.
             app.UseSwagger();
