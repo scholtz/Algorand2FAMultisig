@@ -61,8 +61,8 @@ namespace Algorand2FAMultisig.Extension
             {
                 if (!string.IsNullOrEmpty(dllVersion)) ret.DLLVersion = dllVersion;
             }
-            var version = Assembly.GetExecutingAssembly()?.GetName()?.Version?.ToString();
-            if (!string.IsNullOrEmpty(version)) ret.DLLVersion = version;
+            var DLLVersion = Assembly.GetExecutingAssembly()?.GetName()?.Version?.ToString();
+            if (!string.IsNullOrEmpty(DLLVersion)) ret.DLLVersion = DLLVersion;
 
             ret.InstanceStartedAt = start.ToString("o");
             ret.InstanceIdentifier = instanceId;
