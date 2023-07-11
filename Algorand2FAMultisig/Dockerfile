@@ -17,4 +17,5 @@ RUN dotnet publish "Algorand2FAMultisig.csproj" -c Release -o /app/publish /p:Us
 FROM base AS final
 WORKDIR /app
 COPY --from=publish /app/publish .
+COPY --from=build /src/version.json version.json
 ENTRYPOINT ["dotnet", "Algorand2FAMultisig.dll"]

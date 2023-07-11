@@ -1,7 +1,13 @@
 using Algorand2FAMultisig.Controllers;
+using Algorand2FAMultisig.Extension;
 using AlgorandAuthentication;
-using Microsoft.Extensions.Configuration;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.OpenApi.Models;
+using Prometheus;
+using System.Reflection;
+
+[assembly: AssemblyVersionAttribute("1.0.*")]
 
 namespace Algorand2FAMultisig
 {
@@ -10,6 +16,14 @@ namespace Algorand2FAMultisig
     /// </summary>
     public class Program
     {
+        /// <summary>
+        /// Identifies specific run of the application
+        /// </summary>
+        public readonly static string InstanceId = Guid.NewGuid().ToString();
+        /// <summary>
+        /// Identifies specific run of the application
+        /// </summary>
+        public readonly static DateTimeOffset Started = DateTimeOffset.Now;
         /// <summary>
         /// Main entry point
         /// </summary>
@@ -78,13 +92,16 @@ namespace Algorand2FAMultisig
                     policy.AllowCredentials();
                 });
             });
+            builder.Services.AddOpenTelemetryExtension(builder.Configuration, DiagnosticsConfig.ServiceName);
+
+            builder.Services.AddHealthChecks().AddCheck<HealthCheck>("twoFaServer");
 
             var app = builder.Build();
 
             app.Logger.LogInformation("Preloading singletons");
             _ = app.Services.GetService<Repository.Interface.IStorage>();
-            _ = app.Services.GetService< Repository.Interface.IAuthenticatorApp>();
-            var scopeFactory = app.Services.GetService< IServiceScopeFactory>();
+            _ = app.Services.GetService<Repository.Interface.IAuthenticatorApp>();
+            var scopeFactory = app.Services.GetService<IServiceScopeFactory>();
 
             app.Logger.LogInformation("Preloading MultisigController");
             using (var scope = scopeFactory?.CreateScope())
@@ -95,14 +112,39 @@ namespace Algorand2FAMultisig
 
 
             // Configure the HTTP request pipeline.
+
+            var version = Assembly.GetExecutingAssembly()?.GetName()?.Version;
+            if (version != null)
+            {
+                Metrics.CreateGauge("BuildMajor", "version.Major").Set(Convert.ToDouble(version.Major));
+                Metrics.CreateGauge("BuildMinor", "version.Minor").Set(Convert.ToDouble(version.Minor));
+                Metrics.CreateGauge("BuildRevision", "version.Revision").Set(Convert.ToDouble(version.Revision));
+                Metrics.CreateGauge("BuildBuild", "version.Build").Set(Convert.ToDouble(version.Build));
+            }
+
+            app.UseMetricServer();
+
             app.UseSwagger();
             app.UseSwaggerUI();
+            app.UseRouting();
             app.UseCors();
             app.UseAuthentication();
             app.UseAuthorization();
 
-
+            app.UseHttpMetrics();
             app.MapControllers();
+            app.MapMetrics();
+
+            app.MapHealthChecks("/healthz", new HealthCheckOptions
+            {
+                ResultStatusCodes =
+                    {
+                        [HealthStatus.Healthy] = StatusCodes.Status200OK,
+                        [HealthStatus.Degraded] = StatusCodes.Status200OK,
+                        [HealthStatus.Unhealthy] = StatusCodes.Status503ServiceUnavailable
+                    },
+                ResponseWriter = HealthWriteResponse.WriteResponse
+            });
 
             app.Run();
         }
