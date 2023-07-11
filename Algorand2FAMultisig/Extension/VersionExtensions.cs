@@ -1,4 +1,6 @@
-﻿namespace Algorand2FAMultisig.Extension
+﻿using System.Reflection;
+
+namespace Algorand2FAMultisig.Extension
 {
     /// <summary>
     /// Construct version data
@@ -59,6 +61,9 @@
             {
                 if (!string.IsNullOrEmpty(dllVersion)) ret.DLLVersion = dllVersion;
             }
+            var version = Assembly.GetExecutingAssembly()?.GetName()?.Version?.ToString();
+            if (!string.IsNullOrEmpty(version)) ret.DLLVersion = version;
+
             ret.InstanceStartedAt = start.ToString("o");
             ret.InstanceIdentifier = instanceId;
             ret.Status = status;
